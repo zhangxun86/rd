@@ -23,7 +23,7 @@ import 'scan_page.dart';
 
 class SettingsPage extends StatefulWidget implements PageShape {
   @override
-  final title = translate("Settings");
+  final title = translate("eee");
 
   @override
   final icon = Icon(Icons.settings);
