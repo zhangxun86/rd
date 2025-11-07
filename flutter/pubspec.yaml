@@ -27,6 +27,12 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
+  # --- 这是您的框架库 ---
+  flutter_network_kit:
+    git:
+      url: https://github.com/zhangxun86/flutter_network_kit.git
+      ref: v1.1.6 # I've updated this to the last known good tag we created. Please use your latest tag.
+
   ffi: ^2.1.0
   path_provider: ^2.1.1
   external_path: ^1.0.3
@@ -152,6 +158,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/
+    - .env
+    - .env.dev
 
   fonts:
     - family: GestureIcons

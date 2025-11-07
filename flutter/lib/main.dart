@@ -29,10 +29,15 @@ import 'mobile/pages/home_page.dart';
 import 'mobile/pages/server_page.dart';
 import 'models/platform_model.dart';
 
-import 'package:flutter_hbb/mobile/pages/auth_wrapper.dart';
+// --- START: MODIFICATION 1 - Import necessary files for new feature ---
+import 'package:flutter_hbb/di_container.dart'; // Our new DI container
+import 'package:flutter_hbb/features/auth/domain/repositories/auth_repository.dart';
+import 'package:flutter_hbb/features/auth/presentation/provider/auth_viewmodel.dart';
+import 'common/routes.dart'; // Our new routing file
+// --- END: MODIFICATION 1 ---
 
 import 'package:flutter_hbb/plugin/handlers.dart'
-    if (dart.library.html) 'package:flutter_hbb/web/plugin/handlers.dart';
+if (dart.library.html) 'package:flutter_hbb/web/plugin/handlers.dart';
 
 /// Basic window and launch properties.
 int? kWindowId;
@@ -42,6 +47,11 @@ late List<String> kBootArgs;
 Future<void> main(List<String> args) async {
   earlyAssert();
   WidgetsFlutterBinding.ensureInitialized();
+
+  // --- START: MODIFICATION 2 - Initialize our DI container ---
+  // This will also initialize the flutter_network_kit.
+  await initDI();
+  // --- END: MODIFICATION 2 ---
 
   debugPrint("launch args: $args");
   kBootArgs = List.from(args);
@@ -61,8 +71,6 @@ Future<void> main(List<String> args) async {
         ? <String, dynamic>{}
         : jsonDecode(args[2]) as Map<String, dynamic>;
     int type = argument['type'] ?? -1;
-    // to-do: No need to parse window id ?
-    // Because stateGlobal.windowId is a global value.
     argument['windowId'] = kWindowId;
     kWindowType = type.windowType;
     switch (kWindowType) {
@@ -122,23 +130,15 @@ Future<void> main(List<String> args) async {
 }
 
 Future<void> initEnv(String appType) async {
-  // global shared preference
   await platformFFI.init(appType);
-  // global FFI, use this **ONLY** for global configuration
-  // for convenience, use global FFI on mobile platform
-  // focus on multi-ffi on desktop first
   await initGlobalFFI();
-  // await Firebase.initializeApp();
   _registerEventHandler();
-  // Update the system theme.
   updateSystemWindowTheme();
 }
 
 void runMainApp(bool startService) async {
-  // register uni links
   await initEnv(kAppTypeMain);
   checkUpdate();
-  // trigger connection status updater
   await bind.mainCheckConnectStatus();
   if (startService) {
     gFFI.serverModel.startService();
@@ -155,13 +155,10 @@ void runMainApp(bool startService) async {
         bind.mainGetBuildinOption(key: "main-window-always-on-top") == 'Y';
   }
 
-  // Set window option.
   WindowOptions windowOptions = getHiddenTitleBarWindowOptions(
       isMainWindow: true, alwaysOnTop: alwaysOnTop);
   windowManager.waitUntilReadyToShow(windowOptions, () async {
-    // Restore the location of the main window before window hide or show.
     await restoreWindowPosition(WindowType.Main);
-    // Check the startup argument, if we successfully handle the argument, we keep the main window hidden.
     final handledByUniLinks = await initUniLinks();
     debugPrint("handled by uni links: $handledByUniLinks");
     if (handledByUniLinks || handleUriLink(cmdArgs: kBootArgs)) {
@@ -169,12 +166,10 @@ void runMainApp(bool startService) async {
     } else {
       windowManager.show();
       windowManager.focus();
-      // Move registration of active main window here to prevent from async visible check.
       rustDeskWinManager.registerActiveWindow(kWindowMainId);
     }
     windowManager.setOpacity(1);
     windowManager.setTitle(getWindowName());
-    // Do not use `windowManager.setResizable()` here.
     setResizable(!bind.isIncomingOnly());
   });
 }
@@ -192,12 +187,11 @@ void runMobileApp() async {
 }
 
 void runMultiWindow(
-  Map<String, dynamic> argument,
-  String appType,
-) async {
+    Map<String, dynamic> argument,
+    String appType,
+    ) async {
   await initEnv(appType);
   final title = getWindowName();
-  // set prevent close to true, we handle close event manually
   WindowController.fromWindowId(kWindowId!).setPreventClose(true);
   if (isMacOS) {
     disableWindowMovable(kWindowId);
@@ -232,7 +226,6 @@ void runMultiWindow(
       );
       break;
     default:
-      // no such appType
       exit(0);
   }
   _runApp(
@@ -240,15 +233,12 @@ void runMultiWindow(
     widget,
     MyTheme.currentThemeMode(),
   );
-  // we do not hide titlebar on win7 because of the frame overflow.
   if (kUseCompatibleUiMode) {
     WindowController.fromWindowId(kWindowId!).showTitleBar(true);
   }
   switch (appType) {
     case kAppTypeDesktopRemote:
-      // If screen rect is set, the window will be moved to the target screen and then set fullscreen.
       if (argument['screen_rect'] == null) {
-        // display can be used to control the offset of the window.
         await restoreWindowPosition(
           WindowType.RemoteDesktop,
           windowId: kWindowId!,
@@ -262,14 +252,11 @@ void runMultiWindow(
           windowId: kWindowId!);
       break;
     case kAppTypeDesktopViewCamera:
-      // If screen rect is set, the window will be moved to the target screen and then set fullscreen.
       if (argument['screen_rect'] == null) {
-        // display can be used to control the offset of the window.
         await restoreWindowPosition(
           WindowType.ViewCamera,
           windowId: kWindowId!,
           peerId: argument['id'] as String?,
-          // FIXME: fix display index.
           display: argument['display'] as int?,
         );
       }
@@ -281,10 +268,8 @@ void runMultiWindow(
       await restoreWindowPosition(WindowType.Terminal, windowId: kWindowId!);
       break;
     default:
-      // no such appType
       exit(0);
   }
-  // show window from hidden status
   WindowController.fromWindowId(kWindowId!).show();
 }
 
@@ -303,7 +288,6 @@ void runConnectionManagerScreen() async {
     await showCmWindow(isStartup: true);
   }
   setResizable(false);
-  // Start the uni links handler and redirect links to Native, not for Flutter.
   listenUniLinks(handleByFlutter: false);
 }
 
@@ -320,7 +304,6 @@ showCmWindow({bool isStartup = false}) async {
       windowManager.focus(),
       windowManager.setOpacity(1)
     ]);
-    // ensure initial window size to be changed
     await windowManager.setSizeAlignment(
         kConnectionManagerWindowSizeClosedChat, Alignment.topRight);
     _isCmReadyToShow = true;
@@ -328,7 +311,7 @@ showCmWindow({bool isStartup = false}) async {
     if (await windowManager.getOpacity() != 1) {
       await windowManager.setOpacity(1);
       await windowManager.focus();
-      await windowManager.minimize(); //needed
+      await windowManager.minimize();
       await windowManager.setSizeAlignment(
           kConnectionManagerWindowSizeClosedChat, Alignment.topRight);
       windowOnTop(null);
@@ -357,10 +340,10 @@ hideCmWindow({bool isStartup = false}) async {
 }
 
 void _runApp(
-  String title,
-  Widget home,
-  ThemeMode themeMode,
-) {
+    String title,
+    Widget home,
+    ThemeMode themeMode,
+    ) {
   final botToastBuilder = BotToastInit();
   runApp(RefreshWrapper(
     builder: (context) => GetMaterialApp(
@@ -378,7 +361,6 @@ void _runApp(
       ],
       supportedLocales: supportedLocales,
       navigatorObservers: [
-        // FirebaseAnalyticsObserver(analytics: analytics),
         BotToastNavigatorObserver(),
       ],
       builder: (context, child) {
@@ -395,22 +377,21 @@ void runInstallPage() async {
   await initEnv(kAppTypeMain);
   _runApp('', const InstallPage(), MyTheme.currentThemeMode());
   WindowOptions windowOptions =
-      getHiddenTitleBarWindowOptions(size: Size(800, 600), center: true);
+  getHiddenTitleBarWindowOptions(size: Size(800, 600), center: true);
   windowManager.waitUntilReadyToShow(windowOptions, () async {
     windowManager.show();
     windowManager.focus();
     windowManager.setOpacity(1);
-    windowManager.setAlignment(Alignment.center); // ensure
+    windowManager.setAlignment(Alignment.center);
   });
 }
 
 WindowOptions getHiddenTitleBarWindowOptions(
     {bool isMainWindow = false,
-    Size? size,
-    bool center = false,
-    bool? alwaysOnTop}) {
+      Size? size,
+      bool center = false,
+      bool? alwaysOnTop}) {
   var defaultTitleBarStyle = TitleBarStyle.hidden;
-  // we do not hide titlebar on win7 because of the frame overflow.
   if (kUseCompatibleUiMode) {
     defaultTitleBarStyle = TitleBarStyle.normal;
   }
@@ -447,7 +428,6 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         to = ThemeMode.light;
       }
       Get.changeThemeMode(to);
-      // Synchronize the window theme of the system.
       updateSystemWindowTheme();
       if (desktopType == DesktopType.main) {
         bind.mainChangeTheme(dark: to.toShortString());
@@ -470,13 +450,6 @@ class _AppState extends State<App> with WidgetsBindingObserver {
 
   void _updateOrientation() {
     if (isDesktop) return;
-
-    // Don't use `MediaQuery.of(context).orientation` in `didChangeMetrics()`,
-    // my test (Flutter 3.19.6, Android 14) is always the reverse value.
-    // https://github.com/flutter/flutter/issues/60899
-    // stateGlobal.isPortrait.value =
-    //     MediaQuery.of(context).orientation == Orientation.portrait;
-
     final orientation = View.of(context).physicalSize.aspectRatio > 1
         ? Orientation.landscape
         : Orientation.portrait;
@@ -485,19 +458,24 @@ class _AppState extends State<App> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // final analytics = FirebaseAnalytics.instance;
     final botToastBuilder = BotToastInit();
     return RefreshWrapper(builder: (context) {
+      // --- START: MODIFICATION 3 - Wrap with MultiProvider for our new ViewModel ---
       return MultiProvider(
         providers: [
-          // global configuration
-          // use session related FFI when in remote control or file transfer page
+          // This is where our new feature's state is managed.
+          ChangeNotifierProvider(
+            create: (_) => AuthViewModel(getIt<AuthRepository>()),
+          ),
+
+          // Keep all existing providers from RustDesk.
           ChangeNotifierProvider.value(value: gFFI.ffiModel),
           ChangeNotifierProvider.value(value: gFFI.imageModel),
           ChangeNotifierProvider.value(value: gFFI.cursorModel),
           ChangeNotifierProvider.value(value: gFFI.canvasModel),
           ChangeNotifierProvider.value(value: gFFI.peerTabModel),
         ],
+        // --- END: MODIFICATION 3 ---
         child: GetMaterialApp(
           navigatorKey: globalKey,
           debugShowCheckedModeBanner: false,
@@ -507,11 +485,15 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           theme: MyTheme.lightTheme,
           darkTheme: MyTheme.darkTheme,
           themeMode: MyTheme.currentThemeMode(),
-          home: isDesktop
-              ? const DesktopTabPage()
-              : isWeb
-                  ? WebHomePage()
-                  : HomePage(), //AuthWrapper(),
+
+          // --- START: MODIFICATION 4 - Use our new routing system ---
+          // To make the registration feature accessible, we integrate a simple routing system.
+          // The initial route will be our registration page for testing.
+          onGenerateRoute: AppRoutes.onGenerateRoute,
+          initialRoute: AppRoutes.register, // Set register page as the entry point
+          // The original `home` property is now handled by the router.
+          // --- END: MODIFICATION 4 ---
+
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
@@ -519,31 +501,30 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           ],
           supportedLocales: supportedLocales,
           navigatorObservers: [
-            // FirebaseAnalyticsObserver(analytics: analytics),
             BotToastNavigatorObserver(),
           ],
           builder: isAndroid
               ? (context, child) => AccessibilityListener(
-                    child: MediaQuery(
-                      data: MediaQuery.of(context).copyWith(
-                        textScaler: TextScaler.linear(1.0),
-                      ),
-                      child: child ?? Container(),
-                    ),
-                  )
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(1.0),
+              ),
+              child: child ?? Container(),
+            ),
+          )
               : (context, child) {
-                  child = _keepScaleBuilder(context, child);
-                  child = botToastBuilder(context, child);
-                  if ((isDesktop && desktopType == DesktopType.main) ||
-                      isWebDesktop) {
-                    child = keyListenerBuilder(context, child);
-                  }
-                  if (isLinux) {
-                    return buildVirtualWindowFrame(context, child);
-                  } else {
-                    return workaroundWindowBorder(context, child);
-                  }
-                },
+            child = _keepScaleBuilder(context, child);
+            child = botToastBuilder(context, child);
+            if ((isDesktop && desktopType == DesktopType.main) ||
+                isWebDesktop) {
+              child = keyListenerBuilder(context, child);
+            }
+            if (isLinux) {
+              return buildVirtualWindowFrame(context, child);
+            } else {
+              return workaroundWindowBorder(context, child);
+            }
+          },
         ),
       );
     });
@@ -571,7 +552,6 @@ _registerEventHandler() {
       reloadAllWindows();
     });
   }
-  // Register native handlers.
   if (isDesktop) {
     platformFFI.registerEventHandler('native_ui', 'native_ui', (evt) async {
       NativeUiHandler.instance.onEvent(evt);
