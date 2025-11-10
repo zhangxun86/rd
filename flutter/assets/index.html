@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Aliyun Captcha</title>
+
+    <script type="text/javascript" src="https://o.alicdn.com/captcha-frontend/aliyunCaptcha/AliyunCaptcha.js"></script>
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: transparent;
+        }
+        #captcha-element {
+            /* The container will be centered */
+        }
+    </style>
+</head>
+<body>
+<div id="captcha-element"></div>
+<!-- The #button element is required by the config, but we can keep it hidden -->
+<div id="button" style="display: none;"></div>
+
+<script>
+    var captcha;
+
+    // 1. 初始化验证码，严格按照您提供的配置
+    window.initAliyunCaptcha({
+        SceneId: 'cjto6jph',
+        prefix: 'h9aypj',
+        mode: 'embed',
+        immediate: true,
+        element: '#captcha-element',
+        button: '#button',
+        captchaVerifyCallback: captchaVerifyCallback,
+        onBizResultCallback: onBizResultCallback,
+        getInstance: getInstance,
+        slideStyle: {
+            width: 320,
+            height: 50,
+        },
+        language: 'cn',
+    });
+
+    // 2. 绑定实例
+    function getInstance(instance) {
+        captcha = instance;
+    }
+
+    // 3. 核心：业务请求回调，它现在是一个 async 函数
+    async function captchaVerifyCallback(captchaVerifyParam) {
+        console.log("captchaVerifyCallback called with param:", captchaVerifyParam);
+        try {
+            // 将验签参数发送给 Flutter，并等待 Flutter 的返回结果
+            const flutterResult = await sendMessageToFlutter('verifyCaptcha', captchaVerifyParam);
+
+            console.log("Received result from Flutter:", flutterResult);
+
+            // 根据 Flutter 的返回结果，构建并返回给阿里云 SDK
+            // 假设 Flutter 会返回一个类似 { captchaResult: true/false } 的对象
+            const verifyResult = {
+                captchaResult: flutterResult.captchaResult || false,
+                bizResult: flutterResult.bizResult || false
+            };
+            return verifyResult;
+
+        } catch (error) {
+            console.error("Error communicating with Flutter:", error);
+            // 如果与 Flutter 通信失败，则告知 SDK 验证失败
+            return {
+                captchaResult: false,
+                bizResult: false,
+            };
+        }
+    }
+
+    // 4. 业务结果回调
+    function onBizResultCallback(bizResult) {
+        console.log("onBizResultCallback called with:", bizResult);
+        if (bizResult === true) {
+            // 如果最终业务也成功了（比如短信发送成功），通知 Flutter 关闭 WebView
+            if (window.flutter_inappwebview) {
+                 window.flutter_inappwebview.callHandler('closeWebView', true);
+            }
+        } else {
+            // 可以在这里重置验证码
+            captcha && captcha.reset();
+        }
+    }
+
+    // 5. 封装与 Flutter 的双向通信
+    async function sendMessageToFlutter(action, data) {
+        return new Promise((resolve, reject) => {
+            const callbackName = 'jsCallback_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+
+            window[callbackName] = (response) => {
+                try {
+                    const parsedResponse = JSON.parse(response);
+                    resolve(parsedResponse);
+                } catch (e) {
+                    reject("Failed to parse response from Flutter: " + response);
+                } finally {
+                    delete window[callbackName];
+                }
+            };
+
+            // 使用我们一直以来的 'testInterface'
+            if (window.testInterface && window.testInterface.postMessage) {
+                const message = JSON.stringify({
+                    action: action,
+                    data: data,
+                    callback: callbackName
+                });
+                window.testInterface.postMessage(message);
+            } else {
+                reject("Flutter 'testInterface' not found.");
+            }
+        });
+    }
+</script>
+</body>
+</html>

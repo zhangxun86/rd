@@ -1,16 +1,19 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_network_kit/flutter_network_kit.dart';
-import '../../data/models/register_request_model.dart';
+import '../../data/models/register_request_model.dart'; // Assuming login also uses a model eventually
 import '../../domain/repositories/auth_repository.dart';
 
 enum AuthState { idle, loading, success, error }
 
-/// An enumeration for one-time events that the UI should react to.
 enum AuthEvent {
   none,
   registrationSuccess,
   registrationError,
+  smsCodeRequestSuccess,
+  smsCodeRequestError,
+  loginSuccess,
+  loginError,
 }
 
 class AuthViewModel extends ChangeNotifier {
@@ -23,11 +26,15 @@ class AuthViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  /// A variable to hold one-time events.
+  bool _isSendingSms = false;
+  bool get isSendingSms => _isSendingSms;
+
+  String? _smsErrorMessage;
+  String? get smsErrorMessage => _smsErrorMessage;
+
   AuthEvent _event = AuthEvent.none;
   AuthEvent get event => _event;
 
-  /// The UI calls this method after handling an event to prevent it from firing again.
   void consumeEvent() {
     _event = AuthEvent.none;
   }
@@ -45,17 +52,18 @@ class AuthViewModel extends ChangeNotifier {
       mobile: mobile,
       code: code,
       pwd: pwd,
-      appChannelId: "1", // Example value
-      appShopName: "huawei", // Example value
+      appChannelId: "1",
+      appShopName: "huawei",
     );
 
     final result = await _authRepository.register(requestModel);
 
     if (result is Success) {
       _state = AuthState.success;
-      _event = AuthEvent.registrationSuccess; // Set success event
+      _event = AuthEvent.registrationSuccess;
     } else if (result is Failure) {
       _state = AuthState.error;
+      _event = AuthEvent.registrationError;
 
       final exception = (result as Failure).exception;
       if (exception is ApiException) {
@@ -64,8 +72,79 @@ class AuthViewModel extends ChangeNotifier {
       } else {
         _errorMessage = "An unexpected error occurred: ${exception.toString()}";
       }
-      _event = AuthEvent.registrationError; // Set error event
     }
     notifyListeners();
+  }
+
+  Future<void> login({
+    required String mobile,
+    required String code,
+  }) async {
+    _state = AuthState.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    final result = await _authRepository.login(
+      mobile: mobile,
+      code: code,
+    );
+
+    if (result is Success) {
+      _state = AuthState.success;
+      _event = AuthEvent.loginSuccess;
+    } else if (result is Failure) {
+      _state = AuthState.error;
+      _event = AuthEvent.loginError;
+
+      // --- THIS IS THE FIX ---
+      final exception = (result as Failure).exception;
+      if (exception is ApiException) {
+        // If it's our custom exception, we can safely access its message.
+        _errorMessage = exception.message;
+        debugPrint(exception.toString());
+      } else {
+        // For any other type of exception, use its toString() method.
+        _errorMessage = "An unexpected error occurred during login: ${exception.toString()}";
+      }
+      // --- END OF FIX ---
+    }
+    notifyListeners();
+  }
+
+  Future<bool> requestSmsCode({
+    required String mobile,
+    required String aliCaptchaParam,
+    required String type, // <-- Add this parameter
+  }) async {
+    _isSendingSms = true;
+    _smsErrorMessage = null;
+    notifyListeners();
+
+    final result = await _authRepository.requestSmsCode(
+      mobile: mobile,
+      aliCaptchaParam: aliCaptchaParam,
+      type: type, // <-- Pass it to the repository
+    );
+
+    _isSendingSms = false;
+
+    if (result is Success) {
+      _event = AuthEvent.smsCodeRequestSuccess;
+      notifyListeners();
+      return true;
+    } else { // result is Failure
+      _event = AuthEvent.smsCodeRequestError;
+
+      final exception = (result as Failure).exception;
+      if (exception is ApiException) {
+        _smsErrorMessage = exception.message;
+        debugPrint(exception.toString());
+      } else {
+        _smsErrorMessage = "Failed to get code: ${exception.toString()}";
+      }
+
+      notifyListeners();
+      return false;
+    }
   }
 }

@@ -490,7 +490,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           // To make the registration feature accessible, we integrate a simple routing system.
           // The initial route will be our registration page for testing.
           onGenerateRoute: AppRoutes.onGenerateRoute,
-          initialRoute: AppRoutes.register, // Set register page as the entry point
+          initialRoute: AppRoutes.login, // Set register page as the entry point
           // The original `home` property is now handled by the router.
           // --- END: MODIFICATION 4 ---
 
