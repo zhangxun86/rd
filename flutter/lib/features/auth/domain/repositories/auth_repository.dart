@@ -23,4 +23,16 @@ abstract class AuthRepository {
     required String mobile,
     required String code,
   });
+
+  Future<Result<AuthResponseModel, ApiException>> loginWithPassword({
+    required String mobile,
+    required String pwd,
+  });
+
+  Future<Result<void, ApiException>> resetPassword({
+    required String mobile,
+    required String code,
+    required String pwd,
+  });
+
 }

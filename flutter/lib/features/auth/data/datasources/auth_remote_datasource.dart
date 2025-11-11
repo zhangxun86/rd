@@ -74,4 +74,45 @@ class AuthRemoteDataSource {
       rethrow;
     }
   }
+
+  Future<AuthResponseModel> loginWithPassword({
+    required String mobile,
+    required String pwd,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/user/pwd/login',
+        queryParameters: {
+          'mobile': mobile,
+          'pwd': pwd,
+          // Common parameters will be added by the interceptor
+        },
+      );
+      // We can reuse the AuthResponseModel as the response structure is the same
+      return AuthResponseModel.fromJson(response.data);
+    } on DioException {
+      rethrow;
+    }
+  }
+
+  Future<void> resetPassword({
+    required String mobile,
+    required String code,
+    required String pwd,
+  }) async {
+    try {
+      // This API returns no specific data on success, so the return type is Future<void>.
+      await _dio.post(
+        '/user/pwd/reset',
+        queryParameters: {
+          'mobile': mobile,
+          'code': code,
+          'pwd': pwd,
+          // Common parameters will be added by the interceptor.
+        },
+      );
+    } on DioException {
+      rethrow;
+    }
+  }
 }

@@ -125,4 +125,55 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  @override
+  Future<Result<AuthResponseModel, ApiException>> loginWithPassword({
+    required String mobile,
+    required String pwd,
+  }) async {
+    try {
+      final response = await _remoteDataSource.loginWithPassword(
+        mobile: mobile,
+        pwd: pwd,
+      );
+
+      // Reuse the logic to save auth data locally
+      await _localDataSource.saveAuthData(response);
+
+      return Success(response);
+    } on DioException catch (e) {
+      if (e.error is ApiException) {
+        return Failure(e.error as ApiException);
+      }
+      return Failure(ApiException(
+        message: 'An unknown Dio error occurred during password login.',
+        requestOptions: e.requestOptions,
+      ));
+    }
+  }
+
+  @override
+  Future<Result<void, ApiException>> resetPassword({
+    required String mobile,
+    required String code,
+    required String pwd,
+  }) async {
+    try {
+      await _remoteDataSource.resetPassword(
+        mobile: mobile,
+        code: code,
+        pwd: pwd,
+      );
+      // On success, return a Success result with no data (void).
+      return const Success(null);
+    } on DioException catch (e) {
+      if (e.error is ApiException) {
+        return Failure(e.error as ApiException);
+      }
+      return Failure(ApiException(
+        message: 'An unknown Dio error occurred during password reset.',
+        requestOptions: e.requestOptions,
+      ));
+    }
+  }
+
 }
