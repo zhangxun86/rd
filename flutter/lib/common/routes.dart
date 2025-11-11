@@ -3,6 +3,7 @@ import '../features/auth/presentation/pages/forgot_password_page.dart';
 import '../features/auth/presentation/pages/password_login_page.dart';
 import '../features/auth/presentation/pages/register_page.dart';
 import '../features/auth/presentation/pages/login_page.dart';
+import '../mobile/pages/home_page.dart';
 
 
 class AppRoutes {
@@ -19,7 +20,7 @@ class AppRoutes {
       case register:
         return MaterialPageRoute(builder: (_) => const RegisterPage());
       case home:
-        return MaterialPageRoute(builder: (_) => const HomePage());
+        return MaterialPageRoute(builder: (_) => HomePage());
       case passwordLogin:
         return MaterialPageRoute(builder: (_) => const PasswordLoginPage());
       case forgotPassword:
@@ -27,15 +28,5 @@ class AppRoutes {
       default:
         return MaterialPageRoute(builder: (_) => const LoginPage()); // Default to login
     }
-  }
-}
-
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text("Welcome! Registration Successful!")),
-    );
   }
 }

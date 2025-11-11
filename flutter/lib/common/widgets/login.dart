@@ -424,6 +424,9 @@ Future<bool?> loginDialog() async {
       close(false);
     }
 
+    /**
+     * denglu
+     */
     handleLoginResponse(LoginResponse resp, bool storeIfAccessToken,
         void Function([dynamic])? close) async {
       switch (resp.type) {
