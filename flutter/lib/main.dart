@@ -25,6 +25,8 @@ import 'package:window_manager/window_manager.dart';
 
 import 'common.dart';
 import 'consts.dart';
+import 'features/feedback/domain/repositories/feedback_repository.dart';
+import 'features/feedback/presentation/provider/feedback_viewmodel.dart';
 import 'mobile/pages/home_page.dart';
 import 'mobile/pages/server_page.dart';
 import 'models/platform_model.dart';
@@ -467,7 +469,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           ChangeNotifierProvider(
             create: (_) => AuthViewModel(getIt<AuthRepository>()),
           ),
-
+          ChangeNotifierProvider(create: (_) => FeedbackViewModel(getIt<FeedbackRepository>())),
           // Keep all existing providers from RustDesk.
           ChangeNotifierProvider.value(value: gFFI.ffiModel),
           ChangeNotifierProvider.value(value: gFFI.imageModel),
@@ -490,7 +492,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           // To make the registration feature accessible, we integrate a simple routing system.
           // The initial route will be our registration page for testing.
           onGenerateRoute: AppRoutes.onGenerateRoute,
-          initialRoute: AppRoutes.login, // Set register page as the entry point
+          initialRoute: AppRoutes.profile, // Set register page as the entry point
           // The original `home` property is now handled by the router.
           // --- END: MODIFICATION 4 ---
 

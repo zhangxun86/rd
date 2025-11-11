@@ -3,6 +3,8 @@ import '../features/auth/presentation/pages/forgot_password_page.dart';
 import '../features/auth/presentation/pages/password_login_page.dart';
 import '../features/auth/presentation/pages/register_page.dart';
 import '../features/auth/presentation/pages/login_page.dart';
+import '../features/feedback/presentation/pages/feedback_page.dart';
+import '../features/profile/presentation/pages/profile_page.dart';
 import '../mobile/pages/home_page.dart';
 
 
@@ -12,6 +14,8 @@ class AppRoutes {
   static const String home = '/home';
   static const String passwordLogin = '/password-login';
   static const String forgotPassword = '/forgot-password';
+  static const String profile = '/profile';
+  static const String feedback = '/feedback';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -25,6 +29,10 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const PasswordLoginPage());
       case forgotPassword:
         return MaterialPageRoute(builder: (_) => const ForgotPasswordPage());
+      case profile: // <-- 3. Add case for new route
+        return MaterialPageRoute(builder: (_) => const ProfilePage());
+      case feedback:
+        return MaterialPageRoute(builder: (_) => const FeedbackPage());
       default:
         return MaterialPageRoute(builder: (_) => const LoginPage()); // Default to login
     }
