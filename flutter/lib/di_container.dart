@@ -7,6 +7,9 @@ import 'common/interceptors/alice_interceptor.dart';
 import 'features/feedback/data/datasources/feedback_remote_datasource.dart';
 import 'features/feedback/data/repositories/feedback_repository_impl.dart';
 import 'features/feedback/domain/repositories/feedback_repository.dart';
+import 'features/profile/data/datasources/profile_remote_datasource.dart';
+import 'features/profile/data/repositories/profile_repository_impl.dart';
+import 'features/profile/domain/repositories/profile_repository.dart';
 import 'services/device_info_service.dart';
 import 'common/interceptors/common_params_interceptor.dart';
 
@@ -72,5 +75,6 @@ Future<void> initDI() async {
 
   getIt.registerLazySingleton(() => FeedbackRemoteDataSource(getIt<Dio>()));
   getIt.registerLazySingleton<FeedbackRepository>(() => FeedbackRepositoryImpl(getIt()));
-  // You can add registration for other features (e.g., User, Product) here.
+  getIt.registerLazySingleton(() => ProfileRemoteDataSource(getIt<Dio>()));
+  getIt.registerLazySingleton<ProfileRepository>(() => ProfileRepositoryImpl(getIt()));
 }
