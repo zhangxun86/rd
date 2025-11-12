@@ -1555,6 +1555,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.2"
+  tobias:
+    dependency: "direct main"
+    description:
+      name: tobias
+      sha256: "2b5520e622c0d6f04cfb5c9619211f923c97a602e1a3a8954e113e3e0e685c41"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.3.1"
   toggle_switch:
     dependency: "direct main"
     description:

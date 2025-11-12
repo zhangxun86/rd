@@ -11,13 +11,41 @@ class VipPage extends StatefulWidget {
 }
 
 class _VipPageState extends State<VipPage> {
+  late final VipViewModel _viewModel;
+
   @override
   void initState() {
     super.initState();
-    // Fetch the data for the default tab (Regular VIP) when the page is first loaded.
+    _viewModel = context.read<VipViewModel>();
+    _viewModel.addListener(_onVipStateChanged);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<VipViewModel>().fetchVipList(1);
+      _viewModel.fetchVipList(1);
     });
+  }
+
+  @override
+  void dispose() {
+    _viewModel.removeListener(_onVipStateChanged);
+    super.dispose();
+  }
+
+  void _onVipStateChanged() {
+    if (!mounted) return;
+
+    if (_viewModel.event == VipEvent.purchaseSuccess) {
+      _viewModel.consumeEvent();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('支付成功！'), backgroundColor: Colors.green),
+      );
+      // Optionally, pop the page or refresh user profile.
+      Navigator.of(context).pop(true); // Pop with a success flag
+    } else if (_viewModel.event == VipEvent.purchaseError) {
+      _viewModel.consumeEvent();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_viewModel.errorMessage ?? '支付失败'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
@@ -26,36 +54,23 @@ class _VipPageState extends State<VipPage> {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      // We use a Stack to layer the background image, back button, and main content.
       body: Stack(
         children: [
-          // Layer 1: Background Image/Color
           Positioned.fill(
             child: Container(
-              // Using a solid color as a fallback for the background image.
-              color: const Color(0xFFE3F2FD), // A light blue background
-              // child: Image.asset(
-              //   'assets/images/vip_background.png', // Replace with your actual background image asset
-              //   fit: BoxFit.contain,
-              //   alignment: Alignment.topCenter,
-              // ),
+              color: const Color(0xFFE3F2FD),
+              // child: Image.asset('assets/images/vip_background.png', ...),
             ),
           ),
-
-          // Layer 2: Back Button, positioned within the safe area.
           Positioned(
             top: MediaQuery.of(context).padding.top,
             left: 10,
-            child: const BackButton(color: Colors.black), // Changed to black for better visibility on light background
+            child: const BackButton(color: Colors.black),
           ),
-
-          // Layer 3: Main Content Card that slides up from the bottom.
           Column(
             children: [
-              // This Spacer pushes the content card down. Adjust the flex value to control the height of the top banner.
-              const Spacer(flex: 3),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.25),
               Expanded(
-                flex: 7,
                 child: Container(
                   decoration: const BoxDecoration(
                     color: Colors.white,
@@ -63,13 +78,7 @@ class _VipPageState extends State<VipPage> {
                       topLeft: Radius.circular(24),
                       topRight: Radius.circular(24),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 20,
-                        offset: Offset(0, -5),
-                      )
-                    ],
+                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5))],
                   ),
                   child: Column(
                     children: [
@@ -87,7 +96,6 @@ class _VipPageState extends State<VipPage> {
     );
   }
 
-  /// Builds the main content area, which shows a loader, error, or the VIP packages.
   Widget _buildContent(VipViewModel viewModel) {
     if (viewModel.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -117,13 +125,12 @@ class _VipPageState extends State<VipPage> {
           _buildInfoBox(),
           const SizedBox(height: 24),
           _buildPaymentMethods(viewModel),
-          const SizedBox(height: 24), // Add extra padding at the bottom
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  /// Builds the "普通会员" and "全球会员" tabs.
   Widget _buildVipTypeTabs(VipViewModel viewModel) {
     return Padding(
       padding: const EdgeInsets.only(top: 24.0, left: 16, right: 16),
@@ -137,7 +144,6 @@ class _VipPageState extends State<VipPage> {
     );
   }
 
-  /// Helper to build a single tab.
   Widget _buildTab(VipViewModel viewModel, {required String title, required int type}) {
     final isSelected = viewModel.currentVipType == type;
     return Expanded(
@@ -164,7 +170,6 @@ class _VipPageState extends State<VipPage> {
     );
   }
 
-  /// Builds the grid of selectable VIP packages.
   Widget _buildPackageGrid(VipViewModel viewModel) {
     return GridView.builder(
       shrinkWrap: true,
@@ -184,11 +189,8 @@ class _VipPageState extends State<VipPage> {
     );
   }
 
-  /// Helper to build a single package card.
   Widget _buildPackageCard(VipViewModel viewModel, {required PriceListItemModel package, required bool isSelected}) {
-    // Extracting the duration from the name (e.g., "年卡", "季卡", "月卡")
     String duration = package.name.replaceAll("SVIP", "").replaceAll("VIP", "").trim();
-    // Extracting the original price from the note
     String? originalPrice = package.note;
 
     return GestureDetector(
@@ -227,19 +229,16 @@ class _VipPageState extends State<VipPage> {
                   Text(duration, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Text('¥ ${package.price}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
-                  if (originalPrice != null) ...[
+                  if (originalPrice != null && originalPrice.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    if (originalPrice != null && originalPrice.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        '¥$originalPrice', // Keep the ¥ symbol for visual consistency
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade500,
-                          decoration: TextDecoration.lineThrough,
-                        ),
+                    Text(
+                      '¥$originalPrice',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                        decoration: TextDecoration.lineThrough,
                       ),
-                    ],
+                    ),
                   ],
                 ],
               ),
@@ -250,7 +249,6 @@ class _VipPageState extends State<VipPage> {
     );
   }
 
-  /// Builds the info box below the packages.
   Widget _buildInfoBox() {
     return Container(
       width: double.infinity,
@@ -267,7 +265,6 @@ class _VipPageState extends State<VipPage> {
     );
   }
 
-  /// Builds the selectable payment method buttons.
   Widget _buildPaymentMethods(VipViewModel viewModel) {
     return Column(
       children: [
@@ -278,7 +275,6 @@ class _VipPageState extends State<VipPage> {
     );
   }
 
-  /// Helper to build a single payment method button.
   Widget _buildPaymentButton(VipViewModel viewModel, {required String title, required IconData icon, required Color iconColor, required PaymentMethod method}) {
     final isSelected = viewModel.selectedPaymentMethod == method;
     return GestureDetector(
@@ -305,8 +301,9 @@ class _VipPageState extends State<VipPage> {
     );
   }
 
-  /// Builds the bottom bar with the agreement checkbox and payment button.
   Widget _buildBottomBar(VipViewModel viewModel, double bottomPadding) {
+    final isLoading = viewModel.state == VipState.loading;
+
     return Container(
       padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomPadding),
       decoration: BoxDecoration(
@@ -342,7 +339,9 @@ class _VipPageState extends State<VipPage> {
           ),
           const SizedBox(height: 12),
           ElevatedButton(
-            onPressed: viewModel.isPayButtonEnabled ? () { /* TODO: Implement payment logic */ } : null,
+            onPressed: (isLoading || !viewModel.isPayButtonEnabled)
+                ? null
+                : () => viewModel.purchaseVip(),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 50),
               backgroundColor: Colors.blueAccent,
@@ -350,7 +349,9 @@ class _VipPageState extends State<VipPage> {
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
             ),
-            child: const Text('立即支付', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            child: isLoading
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                : const Text('立即支付', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

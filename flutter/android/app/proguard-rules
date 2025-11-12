@@ -2,3 +2,242 @@
 -keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
   <fields>;
 }
+
+-keep class com.alipay.android.app.IAlixPay{*;}
+-keep class com.alipay.android.app.IAlixPay$Stub{*;}
+-keep class com.alipay.android.app.IRemoteServiceCallback{*;}
+-keep class com.alipay.android.app.IRemoteServiceCallback$Stub{*;}
+-keep class com.alipay.sdk.app.PayTask{ public *;}
+-keep class com.alipay.sdk.app.AuthTask{ public *;}
+-keep class com.alipay.sdk.app.H5PayCallback {
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.app.H5AuthCallback {
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.packet.impl.ClearLoginAccount{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.packet.impl.ClientReport{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.packet.impl.GetInstalledApp{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.packet.impl.SendDmp{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.packet.impl.GetUtdid{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.authjs.AuthInfo{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.authjs.CallInfo{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.authjs.IJsCallback{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.authjs.JsBridge{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.data.Envelope{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.data.FrameData{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.data.InteractionData{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.data.MspConfig{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.data.Request{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.data.Response{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.net.HttpManager{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.net.RequestUtils{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.protocol.ActionType{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.protocol.AppDefine{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.protocol.ElementAction{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.protocol.FrameData{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.protocol.JsonData{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.protocol.MiniStatus{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.protocol.ProtocolUtils{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.protocol.Status{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.protocol.WindowData{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.sys.GlobalContext{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.tid.Tid{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.tid.TidHelper{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.util.ActionUtil{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.util.FileDownloader{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.util.H5PayUtil{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.util.JsonUtils{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.util.LogUtils{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.util.MspUtils{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.util.NetConnectionType{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.util.NetworkUtils{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.util.PayHelper{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.util.Utils{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.widget.SystemDefaultDialog{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.encrypt.Base64{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.encrypt.Des{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.encrypt.MD5{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.encrypt.Rsa{
+    <fields>;
+    <methods>;
+}
+-keep class com.alipay.sdk.encrypt.TriDes{
+    <fields>;
+    <methods>;
+}
+-keep class com.ta.utdid2.android.utils.AESUtils {
+    <fields>;
+    <methods>;
+}
+-keep class com.ta.utdid2.android.utils.Base64 {
+    <fields>;
+    <methods>;
+}
+-keep class com.ta.utdid2.android.utils.DebugUtils {
+    <fields>;
+    <methods>;
+}
+-keep class com.ta.utdid2.android.utils.IntUtils {
+    <fields>;
+    <methods>;
+}
+-keep class com.ta.utdid2.android.utils.SystemProperties {
+    <fields>;
+    <methods>;
+}
+-keep class com.ta.utdid2.android.utils.TimeUtils {
+    <fields>;
+    <methods>;
+}
+-keep class com.ta.utdid2.core.persistent.MySharedPreferences {
+    <fields>;
+    <methods>;
+}
+-keep class com.ta.utdid2.core.persistent.PersistentConfiguration {
+    <fields>;
+    <methods>;
+}
+-keep class com.ta.utdid2.core.persistent.TransactionXMLFile {
+    <fields>;
+    <methods>;
+}
+-keep class com.ta.utdid2.core.UTDevice {
+    <fields>;
+    <methods>;
+}
+-keep class com.ut.device.UTDevice {
+    <fields>;
+    <methods>;
+}

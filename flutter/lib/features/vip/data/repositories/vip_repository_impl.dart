@@ -18,4 +18,21 @@ class VipRepositoryImpl implements VipRepository {
       return Failure(ApiException(message: 'Failed to fetch VIP list', requestOptions: e.requestOptions));
     }
   }
+
+  @override
+  Future<Result<String, ApiException>> buyVip({
+    required int packageId,
+    required int payType,
+  }) async {
+    try {
+      final orderString = await _remoteDataSource.buyVip(
+        packageId: packageId,
+        payType: payType,
+      );
+      return Success(orderString);
+    } on DioException catch (e) {
+      if (e.error is ApiException) return Failure(e.error as ApiException);
+      return Failure(ApiException(message: 'Failed to create payment order', requestOptions: e.requestOptions));
+    }
+  }
 }
