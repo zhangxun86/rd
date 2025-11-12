@@ -1,28 +1,13 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_network_kit/flutter_network_kit.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../common/services/loading_service.dart';
 import '../../domain/repositories/feedback_repository.dart';
 
-/// Defines the possible states for the feedback submission process.
-enum FeedbackState {
-  idle,       // The initial state, no operation in progress.
-  uploading,  // Uploading images.
-  submitting, // Submitting the final feedback form.
-  success,    // The operation completed successfully.
-  error,      // The operation failed.
-}
+enum FeedbackState { idle, uploading, submitting, success, error }
+enum FeedbackEvent { none, submissionSuccess, submissionError }
 
-/// Defines one-time events for the UI to react to.
-enum FeedbackEvent {
-  none,
-  submissionSuccess,
-  submissionError,
-}
-
-/// Manages the state and business logic for the feedback feature.
 class FeedbackViewModel extends ChangeNotifier {
   final FeedbackRepository _feedbackRepository;
   FeedbackViewModel(this._feedbackRepository);
@@ -42,15 +27,13 @@ class FeedbackViewModel extends ChangeNotifier {
   final ImagePicker _picker = ImagePicker();
   final int maxImages = 6;
 
-  /// Resets the current event to `none` after the UI has handled it.
   void consumeEvent() {
     _event = FeedbackEvent.none;
   }
 
-  /// Opens the image gallery to pick an image.
   Future<void> pickImage() async {
     if (_pickedImages.length >= maxImages) {
-      // TODO: Show a user-friendly message that the max number of images has been reached.
+      // TODO: Show a user-friendly message
       return;
     }
     try {
@@ -60,26 +43,26 @@ class FeedbackViewModel extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      // Handle potential platform exceptions from image_picker
       debugPrint("Error picking image: $e");
     }
   }
 
-  /// Removes a previously picked image from the list.
   void removeImage(XFile image) {
     _pickedImages.remove(image);
     notifyListeners();
   }
 
-  /// Handles the entire feedback submission process, including image uploads.
   Future<void> submitFeedback(BuildContext context, String content, {int type = 1}) async {
-    if (content.isEmpty && _pickedImages.isEmpty) {
+    // --- VALIDATION CHECK ---
+    // Ensure that the feedback content is not empty.
+    if (content.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("反馈内容和图片不能同时为空"),
+        content: Text("反馈内容不能为空"),
         backgroundColor: Colors.orange,
       ));
-      return;
+      return; // Exit the function early if validation fails.
     }
+    // --- END OF CHECK ---
 
     _state = FeedbackState.uploading;
     notifyListeners();
@@ -99,7 +82,7 @@ class FeedbackViewModel extends ChangeNotifier {
             uploadedImageUrls.add(attachment.fileUrl);
             break;
           case Failure(exception: final error):
-            throw error; // Propagate the error to the outer catch block.
+            throw error;
         }
       }
 
@@ -117,7 +100,7 @@ class FeedbackViewModel extends ChangeNotifier {
         case Success():
           _state = FeedbackState.success;
           _event = FeedbackEvent.submissionSuccess;
-          _pickedImages.clear(); // Clear images on successful submission.
+          _pickedImages.clear();
           break;
         case Failure(exception: final error):
           throw error;
@@ -128,8 +111,6 @@ class FeedbackViewModel extends ChangeNotifier {
       _event = FeedbackEvent.submissionError;
       _errorMessage = e is ApiException ? e.message : "An unexpected error occurred: ${e.toString()}";
     } finally {
-      // After any error, reset state to idle so the user can try again.
-      // On success, the state will be 'success', and the page will pop.
       if (_state == FeedbackState.error) {
         _state = FeedbackState.idle;
       }
