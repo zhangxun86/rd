@@ -16,6 +16,8 @@ import 'package:flutter_hbb/desktop/screen/desktop_port_forward_screen.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_remote_screen.dart';
 import 'package:flutter_hbb/desktop/screen/desktop_terminal_screen.dart';
 import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
+import 'package:flutter_hbb/features/vip/domain/repositories/vip_repository.dart';
+import 'package:flutter_hbb/features/vip/presentation/provider/vip_viewmodel.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/utils/multi_window_manager.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -473,6 +475,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           ),
           ChangeNotifierProvider(create: (_) => FeedbackViewModel(getIt<FeedbackRepository>())),
           ChangeNotifierProvider(create: (_) => ProfileViewModel(getIt<ProfileRepository>())),
+          ChangeNotifierProvider(create: (_) => VipViewModel(getIt<VipRepository>())),
           // Keep all existing providers from RustDesk.
           ChangeNotifierProvider.value(value: gFFI.ffiModel),
           ChangeNotifierProvider.value(value: gFFI.imageModel),

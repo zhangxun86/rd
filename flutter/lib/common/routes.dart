@@ -5,6 +5,7 @@ import '../features/auth/presentation/pages/register_page.dart';
 import '../features/auth/presentation/pages/login_page.dart';
 import '../features/feedback/presentation/pages/feedback_page.dart';
 import '../features/profile/presentation/pages/profile_page.dart';
+import '../features/vip/presentation/pages/vip_page.dart';
 import '../mobile/pages/home_page.dart';
 
 
@@ -16,6 +17,7 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String profile = '/profile';
   static const String feedback = '/feedback';
+  static const String vip = '/vip';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -33,6 +35,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const ProfilePage());
       case feedback:
         return MaterialPageRoute(builder: (_) => const FeedbackPage());
+      case vip: // <-- 3. 添加处理新路由的 case
+        return MaterialPageRoute(builder: (_) => const VipPage());
       default:
         return MaterialPageRoute(builder: (_) => const LoginPage()); // Default to login
     }

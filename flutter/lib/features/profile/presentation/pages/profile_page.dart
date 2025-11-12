@@ -25,17 +25,15 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    // Use addPostFrameCallback to ensure the context is available
-    // and to fetch data after the first frame is built.
+    // Use addPostFrameCallback to fetch data after the first frame is built.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Use listen:false inside initState callbacks as we don't need to rebuild here.
+      // Use listen:false inside initState callbacks.
       context.read<ProfileViewModel>().fetchUserProfile();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Use Consumer to listen for changes in the ViewModel and rebuild the UI.
     return Consumer<ProfileViewModel>(
       builder: (context, viewModel, child) {
         return Container(
@@ -43,8 +41,8 @@ class _ProfilePageState extends State<ProfilePage> {
           // Add RefreshIndicator for pull-to-refresh functionality.
           child: RefreshIndicator(
             onRefresh: () => viewModel.fetchUserProfile(),
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(), // Ensures the list is always scrollable
+            child: CustomScrollView( // Use CustomScrollView for better scroll effects with RefreshIndicator
+              physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
@@ -98,8 +96,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final profile = viewModel.userProfile;
 
-    // If profile is still null (e.g., after an error but we have old data),
-    // or if we're in the initial state, show the loading placeholder.
+    // If profile is still null, show the loading placeholder.
     if (profile == null) {
       return const _UserInfoLoadingShimmer();
     }
@@ -113,8 +110,6 @@ class _ProfilePageState extends State<ProfilePage> {
           backgroundColor: Colors.grey[200],
           backgroundImage: NetworkImage(profile.avatar),
           onBackgroundImageError: (exception, stackTrace) {
-            // This is a simple error handler for the background image.
-            // You can log the error or handle it as needed.
             debugPrint("Failed to load user avatar: $exception");
           },
         ),
@@ -131,16 +126,13 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 8),
 
-              // --- Conditional rendering based on the isVip flag ---
               if (profile.isVip)
-              // --- VIP User Display ---
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
                       'VIP',
                       style: TextStyle(
-                        fontFamily: 'sans-serif', // Use a font that supports italic well
                         fontStyle: FontStyle.italic,
                         color: Colors.orange.shade800,
                         fontWeight: FontWeight.bold,
@@ -158,14 +150,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 )
               else
-              // --- Non-VIP User Display ---
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const Text(
                       'VIP',
                       style: TextStyle(
-                        fontFamily: 'sans-serif',
                         fontStyle: FontStyle.italic,
                         color: Colors.grey,
                         fontWeight: FontWeight.bold,
@@ -186,45 +176,52 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  /// Builds the "Become a VIP" card.
+  /// Builds the "Become a VIP" card with navigation.
   Widget _buildVipCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E2A4A),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.1),
-            spreadRadius: 2,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('VIP', style: TextStyle(color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-              SizedBox(height: 4),
-              Text('开通会员开始屏幕共享', style: TextStyle(color: Colors.white70, fontSize: 14)),
-            ],
-          ),
-          ElevatedButton(
-            onPressed: () { /* TODO: Handle "Become VIP" action */ },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber[300],
-              foregroundColor: const Color(0xFF6F4E00),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+    return Builder(
+        builder: (context) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E2A4A),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.1),
+                  spreadRadius: 2,
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
-            child: const Text('立即开通', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('VIP', style: TextStyle(color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                    SizedBox(height: 4),
+                    Text('开通会员开始屏幕共享', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  ],
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    // Navigate to the VipPage using its named route.
+                    Navigator.of(context).pushNamed(AppRoutes.vip);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber[300],
+                    foregroundColor: const Color(0xFF6F4E00),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  ),
+                  child: const Text('立即开通', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+        }
     );
   }
 

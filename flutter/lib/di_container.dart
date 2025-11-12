@@ -10,6 +10,9 @@ import 'features/feedback/domain/repositories/feedback_repository.dart';
 import 'features/profile/data/datasources/profile_remote_datasource.dart';
 import 'features/profile/data/repositories/profile_repository_impl.dart';
 import 'features/profile/domain/repositories/profile_repository.dart';
+import 'features/vip/data/datasources/vip_remote_datasource.dart';
+import 'features/vip/data/repositories/vip_repository_impl.dart';
+import 'features/vip/domain/repositories/vip_repository.dart';
 import 'services/device_info_service.dart';
 import 'common/interceptors/common_params_interceptor.dart';
 
@@ -77,4 +80,6 @@ Future<void> initDI() async {
   getIt.registerLazySingleton<FeedbackRepository>(() => FeedbackRepositoryImpl(getIt()));
   getIt.registerLazySingleton(() => ProfileRemoteDataSource(getIt<Dio>()));
   getIt.registerLazySingleton<ProfileRepository>(() => ProfileRepositoryImpl(getIt()));
+  getIt.registerLazySingleton(() => VipRemoteDataSource(getIt<Dio>()));
+  getIt.registerLazySingleton<VipRepository>(() => VipRepositoryImpl(getIt()));
 }
