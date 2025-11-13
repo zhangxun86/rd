@@ -2,6 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.carriez.flutter_hbb">
 
+    <queries>
+        <intent>
+            <action android:name="${applicationId}.FlutterActivity" />
+        </intent>
+    </queries>
+
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
@@ -22,6 +28,7 @@
         </intent>
     </queries>
 
+
     <application
         android:icon="@mipmap/ic_launcher"
         android:label="手机远程控制宝"
@@ -40,6 +47,7 @@
                 <action android:name="com.carriez.flutter_hbb.DEBUG_BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
 
         <service
             android:name=".InputService"

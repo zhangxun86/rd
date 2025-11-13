@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../models/vip_info_model.dart';
+import '../models/wechat_pay_info_model.dart'; // Import is needed, although not used directly
 
 class VipRemoteDataSource {
   final Dio _dio;
@@ -20,8 +21,11 @@ class VipRemoteDataSource {
     }
   }
 
-  /// Initiates a VIP purchase and returns the raw order string for the payment SDK.
-  Future<String> buyVip({
+  /// Initiates a VIP purchase and returns the payment data from the server.
+  ///
+  /// The return type is `dynamic` because the backend returns a `String` for Alipay
+  /// and a `Map<String, dynamic>` (JSON object) for WeChat Pay.
+  Future<dynamic> buyVip({
     required int packageId,
     required int payType,
   }) async {
@@ -29,13 +33,14 @@ class VipRemoteDataSource {
       final response = await _dio.post(
         '/user/lt/vip_auto_buy',
         queryParameters: {
-          'id': packageId.toString(), // The API expects a string.
-          'pay_type': payType.toString(), // The API expects a string.
+          'id': packageId.toString(),
+          'pay_type': payType.toString(),
           // Token and other common params are added by interceptors.
         },
       );
-      // The API is expected to return the raw order string directly in the 'data' field.
-      return response.data as String;
+      // The ApiInterceptor unwraps the 'data' field. We return the content
+      // of 'data' directly, which can be of any type.
+      return response.data;
     } on DioException {
       rethrow;
     }

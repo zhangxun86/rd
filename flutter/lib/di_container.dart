@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_network_kit/flutter_network_kit.dart';
 import 'package:get_it/get_it.dart';
-
+import 'package:fluwx/fluwx.dart';
 // Import your custom services and interceptors
 import 'common/interceptors/alice_interceptor.dart';
 import 'features/feedback/data/datasources/feedback_remote_datasource.dart';
@@ -27,6 +27,8 @@ import 'package:alice/alice.dart';
 
 /// Global service locator instance.
 final getIt = GetIt.instance;
+
+final fluwx = Fluwx();
 
 /// Asynchronously initializes all dependencies for the application.
 /// This function should be called in `main.dart` before `runApp()`.
@@ -59,6 +61,14 @@ Future<void> initDI() async {
       aliceInterceptor, // Add your debug interceptor here
     ],
   );
+
+  await fluwx.registerApi(
+    appId: "wx56972fca359b9c8d", // ！！！替换为您自己的 AppID
+    doOnAndroid: true,
+    doOnIOS: false,
+    universalLink: "",
+  );
+
 
   // --- 4. Business Layer Dependencies Registration ---
 

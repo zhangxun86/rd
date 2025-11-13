@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_network_kit/flutter_network_kit.dart';
 import '../../data/models/vip_info_model.dart';
+import '../../data/models/wechat_pay_info_model.dart';
 import '../../domain/repositories/vip_repository.dart';
 import '../../domain/services/payment_service.dart';
 
 enum PaymentMethod { none, wechat, alipay }
 enum VipState { initial, loading, loaded, error }
-enum VipEvent { none, purchaseSuccess, purchaseError }
+enum VipEvent { none, purchaseInitiated, purchaseSuccess, purchaseError }
 
 class VipViewModel extends ChangeNotifier {
   final VipRepository _vipRepository;
@@ -106,26 +107,50 @@ class VipViewModel extends ChangeNotifier {
       payType: payType,
     );
 
-    if (result is Success<String, ApiException>) {
-      final orderString = result.value;
-      debugPrint("Successfully received Alipay order string.");
+    if (result is Success<dynamic, ApiException>) {
+      final dynamic orderData = result.value;
 
-      final paymentResult = await _paymentService.payWithAlipay(orderString);
-
-      if (paymentResult['resultStatus']?.toString() == '9000') {
-        _state = VipState.loaded;
-        _event = VipEvent.purchaseSuccess;
-      } else {
-        _state = VipState.error;
-        _errorMessage = paymentResult['memo']?.toString() ?? "支付失败或已取消";
-        _event = VipEvent.purchaseError;
+      try {
+        if (_selectedPaymentMethod == PaymentMethod.alipay && orderData is String) {
+          final paymentResult = await _paymentService.payWithAlipay(orderData);
+          if (paymentResult['resultStatus']?.toString() == '9000') {
+            handlePurchaseSuccess();
+          } else {
+            handlePurchaseFailure(paymentResult['memo']?.toString() ?? "支付失败或已取消");
+          }
+        }
+        else if (_selectedPaymentMethod == PaymentMethod.wechat && orderData is Map<String, dynamic>) {
+          final wechatPayInfo = WeChatPayInfoModel.fromJson(orderData);
+          await _paymentService.payWithWeChat(wechatPayInfo);
+          _state = VipState.loaded;
+          _event = VipEvent.purchaseInitiated;
+        }
+        else {
+          throw Exception("支付数据格式不正确");
+        }
+      } catch (e) {
+        handlePurchaseFailure(e.toString());
       }
-    } else if (result is Failure<String, ApiException>) {
+
+    } else if (result is Failure<dynamic, ApiException>) {
       _state = VipState.error;
       _event = VipEvent.purchaseError;
       final exception = result.exception;
       _errorMessage = exception.message;
     }
+    notifyListeners();
+  }
+
+  void handlePurchaseSuccess() {
+    _state = VipState.loaded;
+    _event = VipEvent.purchaseSuccess;
+    notifyListeners();
+  }
+
+  void handlePurchaseFailure(String message) {
+    _state = VipState.error;
+    _errorMessage = message;
+    _event = VipEvent.purchaseError;
     notifyListeners();
   }
 }

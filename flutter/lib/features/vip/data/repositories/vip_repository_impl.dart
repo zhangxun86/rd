@@ -20,16 +20,17 @@ class VipRepositoryImpl implements VipRepository {
   }
 
   @override
-  Future<Result<String, ApiException>> buyVip({
+  Future<Result<dynamic, ApiException>> buyVip({
     required int packageId,
     required int payType,
   }) async {
     try {
-      final orderString = await _remoteDataSource.buyVip(
+      // The data source returns `dynamic` data, which we pass along in the Success case.
+      final orderData = await _remoteDataSource.buyVip(
         packageId: packageId,
         payType: payType,
       );
-      return Success(orderString);
+      return Success(orderData);
     } on DioException catch (e) {
       if (e.error is ApiException) return Failure(e.error as ApiException);
       return Failure(ApiException(message: 'Failed to create payment order', requestOptions: e.requestOptions));

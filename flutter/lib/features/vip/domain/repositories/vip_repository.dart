@@ -7,7 +7,7 @@ abstract class VipRepository {
 
   /// Initiates a VIP purchase.
   /// On success, returns the raw order string for the payment SDK.
-  Future<Result<String, ApiException>> buyVip({
+  Future<Result<dynamic, ApiException>> buyVip({
     required int packageId,
     required int payType,
   });
