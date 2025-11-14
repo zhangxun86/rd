@@ -5,11 +5,13 @@ import '../features/auth/presentation/pages/register_page.dart';
 import '../features/auth/presentation/pages/login_page.dart';
 import '../features/feedback/presentation/pages/feedback_page.dart';
 import '../features/profile/presentation/pages/profile_page.dart';
+import '../features/splash/presentation/pages/splash_page.dart';
 import '../features/vip/presentation/pages/vip_page.dart';
 import '../mobile/pages/home_page.dart';
 
 
 class AppRoutes {
+  static const String splash = '/';
   static const String login = '/login';
   static const String register = '/register';
   static const String home = '/home';
@@ -21,6 +23,8 @@ class AppRoutes {
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case splash:
+        return MaterialPageRoute(builder: (_) => const SplashPage());
       case login:
         return MaterialPageRoute(builder: (_) => const LoginPage());
       case register:
@@ -38,7 +42,7 @@ class AppRoutes {
       case vip: // <-- 3. 添加处理新路由的 case
         return MaterialPageRoute(builder: (_) => const VipPage());
       default:
-        return MaterialPageRoute(builder: (_) => const LoginPage()); // Default to login
+        return MaterialPageRoute(builder: (_) => const SplashPage());// Default to login
     }
   }
 }

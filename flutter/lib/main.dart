@@ -35,12 +35,11 @@ import 'mobile/pages/home_page.dart';
 import 'mobile/pages/server_page.dart';
 import 'models/platform_model.dart';
 
-// --- START: MODIFICATION 1 - Import necessary files for new feature ---
-import 'package:flutter_hbb/di_container.dart'; // Our new DI container
+// --- Imports for our new feature ---
+import 'package:flutter_hbb/di_container.dart';
 import 'package:flutter_hbb/features/auth/domain/repositories/auth_repository.dart';
 import 'package:flutter_hbb/features/auth/presentation/provider/auth_viewmodel.dart';
-import 'common/routes.dart'; // Our new routing file
-// --- END: MODIFICATION 1 ---
+import 'common/routes.dart';
 
 import 'package:flutter_hbb/plugin/handlers.dart'
 if (dart.library.html) 'package:flutter_hbb/web/plugin/handlers.dart';
@@ -54,10 +53,8 @@ Future<void> main(List<String> args) async {
   earlyAssert();
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- START: MODIFICATION 2 - Initialize our DI container ---
-  // This will also initialize the flutter_network_kit.
+  // Initialize our DI container, which also initializes the network kit.
   await initDI();
-  // --- END: MODIFICATION 2 ---
 
   debugPrint("launch args: $args");
   kBootArgs = List.from(args);
@@ -466,16 +463,20 @@ class _AppState extends State<App> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final botToastBuilder = BotToastInit();
     return RefreshWrapper(builder: (context) {
-      // --- START: MODIFICATION 3 - Wrap with MultiProvider for our new ViewModel ---
       return MultiProvider(
         providers: [
-          // This is where our new feature's state is managed.
+          // Provide Repositories directly if needed by non-UI logic
+          Provider<AuthRepository>(
+            create: (_) => getIt<AuthRepository>(),
+          ),
+          // Provide ViewModels for UI state management
           ChangeNotifierProvider(
-            create: (_) => AuthViewModel(getIt<AuthRepository>()),
+            create: (context) => AuthViewModel(context.read<AuthRepository>()),
           ),
           ChangeNotifierProvider(create: (_) => FeedbackViewModel(getIt<FeedbackRepository>())),
           ChangeNotifierProvider(create: (_) => ProfileViewModel(getIt<ProfileRepository>())),
           ChangeNotifierProvider(create: (_) => VipViewModel(getIt<VipRepository>())),
+
           // Keep all existing providers from RustDesk.
           ChangeNotifierProvider.value(value: gFFI.ffiModel),
           ChangeNotifierProvider.value(value: gFFI.imageModel),
@@ -483,7 +484,6 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           ChangeNotifierProvider.value(value: gFFI.canvasModel),
           ChangeNotifierProvider.value(value: gFFI.peerTabModel),
         ],
-        // --- END: MODIFICATION 3 ---
         child: GetMaterialApp(
           navigatorKey: globalKey,
           debugShowCheckedModeBanner: false,
@@ -494,13 +494,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           darkTheme: MyTheme.darkTheme,
           themeMode: MyTheme.currentThemeMode(),
 
-          // --- START: MODIFICATION 4 - Use our new routing system ---
-          // To make the registration feature accessible, we integrate a simple routing system.
-          // The initial route will be our registration page for testing.
+          // Use our new routing system, with SplashPage as the entry point
           onGenerateRoute: AppRoutes.onGenerateRoute,
-          initialRoute: AppRoutes.login, // Set register page as the entry point
-          // The original `home` property is now handled by the router.
-          // --- END: MODIFICATION 4 ---
+          initialRoute: AppRoutes.splash,
 
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
