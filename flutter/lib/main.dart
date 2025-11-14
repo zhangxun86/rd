@@ -31,6 +31,7 @@ import 'features/feedback/domain/repositories/feedback_repository.dart';
 import 'features/feedback/presentation/provider/feedback_viewmodel.dart';
 import 'features/profile/domain/repositories/profile_repository.dart';
 import 'features/profile/presentation/provider/profile_viewmodel.dart';
+import 'features/splash/presentation/pages/app_shell.dart';
 import 'mobile/pages/home_page.dart';
 import 'mobile/pages/server_page.dart';
 import 'models/platform_model.dart';
@@ -493,10 +494,10 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           theme: MyTheme.lightTheme,
           darkTheme: MyTheme.darkTheme,
           themeMode: MyTheme.currentThemeMode(),
-
+          home: const AppShell(),
           // Use our new routing system, with SplashPage as the entry point
           onGenerateRoute: AppRoutes.onGenerateRoute,
-          initialRoute: AppRoutes.splash,
+          //initialRoute: AppRoutes.splash,
 
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
