@@ -1,9 +1,8 @@
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
-
-import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_hbb/features/auth/domain/repositories/auth_repository.dart';
+import 'package:get_it/get_it.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 /// A service dedicated to providing dynamic device, application,
 /// and user-specific information required for API calls.
@@ -29,55 +28,60 @@ class DeviceInfoService {
 
   // --- Getters for dynamic values ---
 
-  /// Gets the application version (e.g., "3.0.1").
+  /// Gets the application version (e.g., "1.4.2").
   String get version => _packageInfo?.version ?? 'unknown';
 
-  /// Gets the application build number (e.g., "3001").
+  /// Gets the application build number (e.g., "60").
   String get appCode => _packageInfo?.buildNumber ?? 'unknown';
 
-  /// Gets the application channel ID (can be a fixed value or dynamic).
+  /// Gets the application channel ID.
   String get appChannelId => '105'; // As specified in your requirement
 
   /// Gets the app shop/store name based on the platform.
   String get appShopName {
     if (Platform.isAndroid) {
-      // This can be enhanced further based on build flavors or other logic.
       return "android";
     } else if (Platform.isIOS) {
       return "app_store";
     }
-    // Add cases for other platforms if needed (web, desktop, etc.)
     return "unknown";
   }
 
-  /// Gets a descriptive name for the device (e.g., "HUAWEI P40" or "John's iPhone").
+  /// Gets a descriptive name for the device (e.g., "HUAWEI YAL-AL10").
   String get appDeviceName {
     final info = _deviceInfo;
     if (info is AndroidDeviceInfo) {
-      // Combines manufacturer and model for a descriptive name.
       return "${info.manufacturer} ${info.model}";
     }
     if (info is IosDeviceInfo) {
-      // Uses the user-assigned name of the iOS device.
       return info.name;
     }
     // A fallback for other platforms like web or desktop.
-    return 'Desktop Device';
+    try {
+      return info?.data['prettyName'] ?? 'Unknown Device';
+    } catch (e) {
+      return 'Unknown Device';
+    }
   }
 
-  /// Asynchronously retrieves the stored authentication token.
+  /// Asynchronously retrieves the stored authentication token for the custom PHP APIs.
+  /// It gets the token via the `AuthRepository` to maintain layer separation.
   /// Returns `null` if the token is not found.
   Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    // Assuming the token is stored with the key 'auth_token' after successful login/registration.
-    return prefs.getString('auth_token');
+    // Check if AuthRepository is registered before trying to get it.
+    if (GetIt.instance.isRegistered<AuthRepository>()) {
+      final authRepository = GetIt.instance<AuthRepository>();
+      return await authRepository.getToken();
+    }
+    // Return null if the repository is not available yet (e.g., during early startup).
+    return null;
   }
 
   /// Asynchronously builds and returns a map of all common parameters
   /// required for most API requests.
   Future<Map<String, dynamic>> getCommonParameters() async {
     // Ensure that the service has been initialized before getting parameters.
-    // This is a safety check in case `init()` wasn't awaited.
+    // This is a safety check.
     if (_packageInfo == null || _deviceInfo == null) {
       await init();
     }
@@ -88,7 +92,8 @@ class DeviceInfoService {
       'app_code': appCode,
       'app_shop_name': appShopName,
       'app_device_name': appDeviceName,
-      'token': await getToken(), // The token is fetched dynamically for each request.
+      // This will fetch the correct token from SharedPreferences via the repository.
+      'token': await getToken(),
     };
   }
 }

@@ -475,6 +475,9 @@ class _PeerTabPageState extends State<PeerTabPage>
     );
   }
 
+  /**
+   * denglu
+   */
   Widget editSelectionTags() {
     final model = Provider.of<PeerTabModel>(context);
     return Offstage(

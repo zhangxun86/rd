@@ -3,36 +3,21 @@ import '../../data/models/auth_response_model.dart';
 import '../../data/models/register_request_model.dart';
 
 abstract class AuthRepository {
-  /// Registers a user.
   Future<Result<AuthResponseModel, ApiException>> register(RegisterRequestModel request);
+  Future<Result<AuthResponseModel, ApiException>> login({required String mobile, required String code});
+  Future<Result<AuthResponseModel, ApiException>> loginWithPassword({required String mobile, required String pwd});
+  Future<Result<void, ApiException>> resetPassword({required String mobile, required String code, required String pwd});
 
-  /// Gets the auth token from local storage.
   Future<String?> getToken();
-
-  /// Clears auth data from local storage.
   Future<void> logout();
 
-  /// Handles the entire "get SMS code" flow, including captcha verification.
   Future<Result<void, ApiException>> requestSmsCode({
     required String mobile,
     required String aliCaptchaParam,
-    required String type, // <-- Add this parameter
+    required String type,
   });
 
-  Future<Result<AuthResponseModel, ApiException>> login({
-    required String mobile,
-    required String code,
-  });
-
-  Future<Result<AuthResponseModel, ApiException>> loginWithPassword({
-    required String mobile,
-    required String pwd,
-  });
-
-  Future<Result<void, ApiException>> resetPassword({
-    required String mobile,
-    required String code,
-    required String pwd,
-  });
-
+  // --- Methods for verification ---
+  Future<String?> getTokenFromFFI();
+  Future<String?> getUserInfoFromFFI();
 }

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../../../auth/domain/repositories/auth_repository.dart';
 import '../provider/feedback_viewmodel.dart';
 
 class FeedbackPage extends StatefulWidget {
@@ -51,6 +52,15 @@ class _FeedbackPageState extends State<FeedbackPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('问题反馈'),
+        actions: [
+          // Add a button to the AppBar
+          IconButton(
+            icon: const Icon(Icons.verified_user_outlined),
+            tooltip: 'Verify Tokens',
+            onPressed: () => _verifyToken(context),
+          ),
+          // ... (your existing logout button)
+        ],
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
@@ -185,4 +195,34 @@ class _FeedbackPageState extends State<FeedbackPage> {
       },
     );
   }
+
+  void _verifyToken(BuildContext context) async {
+    // Get the repository instance from the provider/DI.
+    final authRepository = context.read<AuthRepository>();
+
+    // 1. Read from SharedPreferences via the repository's existing method.
+    final sharedPrefsToken = await authRepository.getToken();
+
+    // 2. Read from FFI storage via our new repository method.
+    final ffiToken = await authRepository.getTokenFromFFI();
+    final userinfo = await authRepository.getUserInfoFromFFI();
+
+    print("--- Token Verification ---");
+    print("Token from SharedPreferences: $sharedPrefsToken");
+    print("Token from RustDesk FFI Storage: $ffiToken");
+    print("Token from RustDesk user info : $userinfo");
+    print("--------------------------");
+
+    // Show a SnackBar with the result.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'SharedPreferences: ${sharedPrefsToken ?? "Not Found"}\n'
+                'FFI Storage: ${ffiToken ?? "Not Found"}'
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+  // ---
 }
