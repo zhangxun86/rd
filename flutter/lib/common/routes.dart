@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hbb/mobile/pages/settings_page.dart';
 import '../features/auth/presentation/pages/forgot_password_page.dart';
 import '../features/auth/presentation/pages/password_login_page.dart';
 import '../features/auth/presentation/pages/register_page.dart';
@@ -20,6 +21,8 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String feedback = '/feedback';
   static const String vip = '/vip';
+  static const String setting = '/setting';
+
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -41,6 +44,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const FeedbackPage());
       case vip: // <-- 3. 添加处理新路由的 case
         return MaterialPageRoute(builder: (_) => const VipPage());
+      case setting: // <-- 3. 添加处理新路由的 case
+        return MaterialPageRoute(builder: (_) => SettingsPage());
       default:
         return MaterialPageRoute(builder: (_) => const SplashPage());// Default to login
     }
