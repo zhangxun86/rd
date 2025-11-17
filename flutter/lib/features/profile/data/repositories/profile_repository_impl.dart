@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_network_kit/flutter_network_kit.dart';
 import '../../domain/repositories/profile_repository.dart';
 import '../datasources/profile_remote_datasource.dart';
+import '../models/connection_data_model.dart';
 import '../models/user_profile_model.dart';
 
 class ProfileRepositoryImpl implements ProfileRepository {
@@ -16,6 +17,17 @@ class ProfileRepositoryImpl implements ProfileRepository {
     } on DioException catch (e) {
       if (e.error is ApiException) return Failure(e.error as ApiException);
       return Failure(ApiException(message: 'Failed to fetch profile', requestOptions: e.requestOptions));
+    }
+  }
+
+  @override
+  Future<Result<ConnectionDataModel, ApiException>> getConnectionData() async {
+    try {
+      final data = await _remoteDataSource.getConnectionData();
+      return Success(data);
+    } on DioException catch (e) {
+      if (e.error is ApiException) return Failure(e.error as ApiException);
+      return Failure(ApiException(message: 'Failed to fetch connection data', requestOptions: e.requestOptions));
     }
   }
 }

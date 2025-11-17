@@ -18,6 +18,7 @@ import '../../common.dart';
 import '../../common/widgets/overlay.dart';
 import '../../common/widgets/dialog.dart';
 import '../../common/widgets/remote_input.dart';
+import '../../features/profile/domain/services/connection_timer_service.dart';
 import '../../models/input_model.dart';
 import '../../models/model.dart';
 import '../../models/platform_model.dart';
@@ -114,6 +115,13 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
         .changeCurrentKey(MessageKey(widget.id, ChatModel.clientModeID));
     _blockableOverlayState.applyFfi(gFFI);
     gFFI.imageModel.addCallbackOnFirstImage((String peerId) {
+      final bool isOutgoingConnection = widget.password != null || widget.forceRelay == true;
+      if (isOutgoingConnection) {
+        print("This is an outgoing connection. Starting connection timer.");
+        ConnectionTimerService().start(widget.id);
+      } else {
+        print("This is an incoming connection. Timer will not be started.");
+      }
       gFFI.recordingModel
           .updateStatus(bind.sessionGetIsRecording(sessionId: gFFI.sessionId));
       if (gFFI.recordingModel.start) {
@@ -127,6 +135,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
 
   @override
   Future<void> dispose() async {
+    ConnectionTimerService().stop();
     WidgetsBinding.instance.removeObserver(this);
     // https://github.com/flutter/flutter/issues/64935
     super.dispose();

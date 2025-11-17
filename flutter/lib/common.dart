@@ -16,6 +16,8 @@ import 'package:flutter_hbb/models/peer_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/utils/multi_window_manager.dart';
 import 'package:flutter_hbb/utils/platform_channel.dart';
+import 'package:flutter_network_kit/network/exception/api_exception.dart';
+import 'package:flutter_network_kit/utils/result.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -26,7 +28,12 @@ import 'package:window_manager/window_manager.dart';
 import 'package:window_size/window_size.dart' as window_size;
 
 import '../consts.dart';
+import 'common/routes.dart';
 import 'common/widgets/overlay.dart';
+import 'di_container.dart';
+import 'features/profile/data/models/connection_data_model.dart';
+import 'features/profile/domain/repositories/profile_repository.dart';
+import 'features/profile/domain/services/connection_timer_service.dart';
 import 'mobile/pages/file_manager_page.dart';
 import 'mobile/pages/remote_page.dart';
 import 'mobile/pages/view_camera_page.dart';
@@ -692,6 +699,8 @@ String formatDurationToTime(Duration duration) {
 }
 
 closeConnection({String? id}) {
+  ConnectionTimerService().stop();
+
   if (isAndroid || isIOS) {
     () async {
       await SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
@@ -2433,6 +2442,47 @@ connect(BuildContext context, String id,
     String? connToken,
     bool? isSharedPassword}) async {
   if (id == '') return;
+
+  // --- START: MODIFICATION - Pre-connection check ---
+  final profileRepo = getIt<ProfileRepository>();
+
+  final loading = gFFI.dialogManager.showLoading('正在检查连接时长...');
+
+  final result = await profileRepo.getConnectionData();
+
+  gFFI.dialogManager.dismissByTag(loading);
+
+  // Use pattern matching or if/else to safely handle the Result type
+  if (result is Failure<ConnectionDataModel, ApiException>) {
+    // Now that we know it's a Failure, we can safely access `exception`.
+    final exception = result.exception;
+    gFFI.dialogManager.show((setState, close, context) => CustomAlertDialog(
+      title: Text("错误"),
+      content: Text(exception.message), // Access message safely
+      actions: [dialogButton("OK", onPressed: close)],
+    ));
+    return; // Stop the connection process
+  }
+
+  // If it's not a Failure, it must be a Success.
+  // We can now safely access the `value`.
+  final remainingTime = (result as Success<ConnectionDataModel, ApiException>).value.remainingTime;
+
+  if (remainingTime <= 0) {
+    gFFI.dialogManager.show((setState, close, context) => CustomAlertDialog(
+      title: Text("连接时长不足"),
+      content: Text("您的远程连接时长已用完，请充值后再试。"),
+      actions: [
+        dialogButton("取消", onPressed: close, isOutline: true),
+        dialogButton("前往充值", onPressed: () {
+          close();
+          Navigator.of(context).pushNamed(AppRoutes.vip);
+        }),
+      ],
+    ));
+    return; // Stop the connection process
+  }
+
   if (!isDesktop || desktopType == DesktopType.main) {
     try {
       if (Get.isRegistered<IDTextEditingController>()) {
