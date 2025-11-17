@@ -84,13 +84,17 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> logout() async {
+    // 1. Clear our Dart-level storage.
     await _localDataSource.clearAuthData();
+
+    // 2. Clear RustDesk's FFI-level storage.
     await bind.mainSetLocalOption(key: 'access_token', value: '');
     await bind.mainSetLocalOption(key: 'user_info', value: '');
 
-    // --- FIX IS HERE ---
-    // Call the default constructor `ServerConfig()` to create an empty config.
+    // 3. (Optional but recommended) Clear the server config if it was set by login.
     await setServerConfig(null, [RxString(''), RxString(''), RxString('')], ServerConfig());
+
+    print("Custom auth data and FFI storage cleared.");
   }
 
   @override
@@ -218,5 +222,19 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<String?> getUserInfoFromFFI() async {
     final userInfo = await bind.mainGetLocalOption(key: 'user_info');
     return userInfo.isEmpty ? null : userInfo;
+  }
+
+  @override
+  Future<Result<void, ApiException>> deleteAccount() async {
+    try {
+      await _remoteDataSource.deleteAccount();
+      // After successfully deleting the account on the server,
+      // clear all local data.
+      await logout(); // We can reuse the logout method for cleanup!
+      return const Success(null);
+    } on DioException catch (e) {
+      if (e.error is ApiException) return Failure(e.error as ApiException);
+      return Failure(ApiException(message: 'Failed to delete account', requestOptions: e.requestOptions));
+    }
   }
 }

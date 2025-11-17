@@ -8,6 +8,8 @@ import 'package:flutter_hbb/models/ab_model.dart';
 import 'package:get/get.dart';
 
 import '../common.dart';
+import '../di_container.dart';
+import '../features/auth/domain/repositories/auth_repository.dart';
 import '../utils/http_service.dart' as http;
 import 'model.dart';
 import 'platform_model.dart';
@@ -131,23 +133,31 @@ class UserModel {
   }
 
   Future<void> logOut({String? apiServer}) async {
-    final tag = gFFI.dialogManager.showLoading(translate('Waiting'));
+    // Show a loading indicator to provide user feedback.
+    final tag = gFFI.dialogManager.showLoading(translate('Logging out...'));
+
     try {
-      final url = apiServer ?? await bind.mainGetApiServer();
-      final authHeaders = getHttpHeaders();
-      authHeaders['Content-Type'] = "application/json";
-      await http
-          .post(Uri.parse('$url/api/logout'),
-              body: jsonEncode({
-                'id': await bind.mainGetMyId(),
-                'uuid': await bind.mainGetUuid(),
-              }),
-              headers: authHeaders)
-          .timeout(Duration(seconds: 2));
-    } catch (e) {
-      debugPrint("request /api/logout failed: err=$e");
-    } finally {
+      // --- THIS IS THE FIX ---
+
+      // 1. Call our custom repository's logout method.
+      // This is now the primary source of truth for clearing data.
+      // It handles SharedPreferences, FFI keys ('access_token', 'user_info'), and server config.
+      final authRepository = getIt<AuthRepository>();
+      await authRepository.logout();
+      print("Custom auth data, FFI storage, and server config cleared.");
+
+      // 2. Call RustDesk's internal state reset method.
+      // This resets in-memory states like `isLogin`, `userName`, and notifies listeners.
+      // We pass `resetOther: true` to ensure related models (like address book) are also updated.
       await reset(resetOther: true);
+
+      // --- END OF FIX ---
+
+    } catch (e) {
+      // In case any of the logout steps fail, log the error.
+      print("Error during logout process: $e");
+    } finally {
+      // Always dismiss the loading indicator, even if an error occurred.
       gFFI.dialogManager.dismissByTag(tag);
     }
   }

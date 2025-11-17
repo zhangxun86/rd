@@ -16,6 +16,8 @@ enum AuthEvent {
   loginError,
   resetPasswordSuccess,
   resetPasswordError,
+  deleteAccountSuccess, // <-- NEW
+  deleteAccountError,   // <-- NEW
 }
 
 class AuthViewModel extends ChangeNotifier {
@@ -212,5 +214,31 @@ class AuthViewModel extends ChangeNotifier {
       successEvent: AuthEvent.resetPasswordSuccess,
       errorEvent: AuthEvent.resetPasswordError,
     );
+  }
+
+  Future<void> deleteAccount() async {
+    _state = AuthState.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    final result = await _authRepository.deleteAccount();
+
+    if (result is Success) {
+      _state = AuthState.success;
+      _event = AuthEvent.deleteAccountSuccess;
+      // Also update the isLoggedIn flag
+      _isLoggedIn = false;
+    } else if (result is Failure) {
+      _state = AuthState.error;
+      _event = AuthEvent.deleteAccountError;
+
+      final exception = (result as Failure).exception;
+      if (exception is ApiException) {
+        _errorMessage = exception.message;
+      } else {
+        _errorMessage = "An unexpected error occurred: ${exception.toString()}";
+      }
+    }
+    notifyListeners();
   }
 }

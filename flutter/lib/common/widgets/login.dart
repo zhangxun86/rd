@@ -7,9 +7,12 @@ import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/user_model.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../common.dart';
+import '../../features/auth/presentation/provider/auth_viewmodel.dart';
+import '../routes.dart';
 import './dialog.dart';
 
 const kOpSvgList = [
@@ -728,9 +731,27 @@ Future<bool?> verificationCodeDialog(
 
 void logOutConfirmDialog() {
   gFFI.dialogManager.show((setState, close, context) {
-    submit() {
+
+    submit() async {
       close();
-      gFFI.userModel.logOut();
+      await gFFI.userModel.logOut();
+
+      // --- THIS IS THE FIX ---
+      // 1. Get the context from the global key.
+      final currentContext = globalKey.currentContext;
+
+      // 2. Check if the context is not null before using it.
+      if (currentContext != null && currentContext.mounted) {
+        final navigator = Navigator.of(currentContext);
+
+        // 3. Although `canPop` is a good check, `pushNamedAndRemoveUntil` is more robust.
+        // It will work even if there's only one page on the stack.
+        navigator.pushNamedAndRemoveUntil(
+          AppRoutes.login, // Or your preferred login route
+              (route) => false, // This predicate removes all routes
+        );
+      }
+      // --- END OF FIX ---
     }
 
     return CustomAlertDialog(
@@ -738,6 +759,38 @@ void logOutConfirmDialog() {
       actions: [
         dialogButton(translate("Cancel"), onPressed: close, isOutline: true),
         dialogButton(translate("OK"), onPressed: submit),
+      ],
+      onSubmit: submit,
+      onCancel: close,
+    );
+  });
+}
+
+void showDeleteAccountDialog() {
+  gFFI.dialogManager.show((setState, close, context) {
+    submit() async {
+      close();
+      // Call the ViewModel method to delete the account
+
+      await Provider.of<AuthViewModel>(globalKey.currentContext!, listen: false).deleteAccount();
+
+      // --- THIS IS THE FIX ---
+      // 3. 在注销完成后，立即执行全局导航
+      final navigator = Navigator.of(globalKey.currentContext!);
+      if (navigator.canPop()) {
+        navigator.pushNamedAndRemoveUntil(
+          AppRoutes.login, // 或者 AppRoutes.passwordLogin，取决于你的默认登录页
+              (route) => false, // 移除所有旧页面
+        );
+      }
+    }
+
+    return CustomAlertDialog(
+      title: Text("注销账号"),
+      content: Text("您确定要注销您的账号吗？此操作不可恢复，所有数据将被清除。"),
+      actions: [
+        dialogButton("取消", onPressed: close, isOutline: true),
+        dialogButton("确定注销", onPressed: submit, buttonStyle: ElevatedButton.styleFrom(backgroundColor: Colors.red)),
       ],
       onSubmit: submit,
       onCancel: close,

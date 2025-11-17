@@ -115,4 +115,13 @@ class AuthRemoteDataSource {
       rethrow;
     }
   }
+
+  Future<void> deleteAccount() async {
+    try {
+      // Token will be added by the CommonParamsInterceptor.
+      await _dio.delete('/user/del');
+    } on DioException {
+      rethrow;
+    }
+  }
 }

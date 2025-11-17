@@ -57,7 +57,7 @@ class _SplashPageState extends State<SplashPage> {
         Navigator.of(context).pushReplacementNamed(AppRoutes.home);
       } else {
         // User is not logged in, go to login page.
-        Navigator.of(context).pushReplacementNamed(AppRoutes.passwordLogin);
+        Navigator.of(context).pushReplacementNamed(AppRoutes.login);
       }
     }
   }

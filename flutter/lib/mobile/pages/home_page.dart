@@ -55,7 +55,8 @@ class HomePageState extends State<HomePage> {
     }
     if (isAndroid && !bind.isOutgoingOnly()) {
       _chatPageTabIndex = _pages.length;
-      _pages.addAll([ChatPage(type: ChatPageType.mobileMain), ServerPage()]);
+      //_pages.addAll([ChatPage(type: ChatPageType.mobileMain), ServerPage()]);
+      _pages.add(ServerPage());
     }
     _pages.add(ProfilePage());
   }

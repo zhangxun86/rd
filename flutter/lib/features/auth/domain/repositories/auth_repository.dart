@@ -20,4 +20,6 @@ abstract class AuthRepository {
   // --- Methods for verification ---
   Future<String?> getTokenFromFFI();
   Future<String?> getUserInfoFromFFI();
+
+  Future<Result<void, ApiException>> deleteAccount();
 }

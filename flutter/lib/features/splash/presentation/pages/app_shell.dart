@@ -154,7 +154,7 @@ class _AppShellState extends State<AppShell> {
           // We use a Navigator to manage the auth pages (login, register, etc.).
           return Navigator(
             key: const ValueKey('AuthNavigator'), // A key helps Flutter distinguish this navigator
-            initialRoute: AppRoutes.passwordLogin, // The entry point for the auth flow
+            initialRoute: AppRoutes.login, // The entry point for the auth flow
             onGenerateRoute: AppRoutes.onGenerateRoute,
           );
         }
