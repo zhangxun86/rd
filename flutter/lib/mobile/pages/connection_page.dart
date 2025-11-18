@@ -26,7 +26,7 @@ class ConnectionPage extends StatefulWidget implements PageShape {
   final icon = const Icon(Icons.connected_tv);
 
   @override
-  final title = translate("Connection");
+  final title = '连接'; //translate("Connection");
 
   @override
   final List<Widget> appBarActions;
@@ -84,8 +84,8 @@ class _ConnectionPageState extends State<ConnectionPage> {
       slivers: [
         SliverList(
             delegate: SliverChildListDelegate([
-          if (!bind.isCustomClient() && !isIOS)
-            Obx(() => _buildUpdateUI(stateGlobal.updateUrl.value)),
+          /*if (!bind.isCustomClient() && !isIOS)
+            Obx(() => _buildUpdateUI(stateGlobal.updateUrl.value)),*/
           _buildRemoteIDTextField(),
         ])),
         SliverFillRemaining(

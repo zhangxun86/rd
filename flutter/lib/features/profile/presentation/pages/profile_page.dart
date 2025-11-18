@@ -9,7 +9,7 @@ class ProfilePage extends StatefulWidget implements PageShape {
   const ProfilePage({super.key});
 
   @override
-  String get title => translate("My");
+  String get title => translate("我的");
 
   @override
   Widget get icon => const Icon(Icons.person_outline_rounded);

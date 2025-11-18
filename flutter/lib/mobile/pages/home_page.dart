@@ -152,6 +152,10 @@ class HomePageState extends State<HomePage> {
         ],
       );
     }
+    final currentPageTitle = _pages[_selectedIndex].title;
+    if (currentPageTitle.isNotEmpty) {
+      return Text(currentPageTitle);
+    }
     return Text(bind.mainGetAppNameSync());
   }
 }
