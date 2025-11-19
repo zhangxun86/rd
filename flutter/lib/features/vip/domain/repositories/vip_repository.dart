@@ -11,4 +11,6 @@ abstract class VipRepository {
     required int packageId,
     required int payType,
   });
+
+  Future<void> fetchAndApplyServerConfig();
 }

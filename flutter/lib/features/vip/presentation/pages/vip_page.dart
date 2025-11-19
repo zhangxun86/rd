@@ -4,9 +4,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fluwx/fluwx.dart';
-import '../../../../di_container.dart'; // Import to get the global fluwx instance
+import 'package:url_launcher/url_launcher.dart'; // Import url_launcher for launching tip URLs
+import '../../../../di_container.dart';
 import '../provider/vip_viewmodel.dart';
 import '../../data/models/vip_info_model.dart';
+import '../../../../common/routes.dart'; // Import routes to use AppRoutes.webview
 
 class VipPage extends StatefulWidget {
   const VipPage({super.key});
@@ -28,16 +30,11 @@ class _VipPageState extends State<VipPage> {
       _viewModel.fetchVipList(1);
     });
 
-    // --- CORRECT fluwx LISTENER FOR YOUR VERSION ---
-    // Use the `addSubscriber` method on the global fluwx instance.
     _paymentSubscription = fluwx.addSubscriber((response) {
-      // The response can be of different types, we only care about PaymentResponse.
       if (response is WeChatPaymentResponse) {
         if (response.isSuccessful ?? false) {
-          debugPrint("WeChat Pay Success Callback!");
           _viewModel.handlePurchaseSuccess();
         } else {
-          debugPrint("WeChat Pay Failed Callback: ${response.errCode} - ${response.errStr}");
           _viewModel.handlePurchaseFailure(response.errStr ?? "支付失败或取消");
         }
       }
@@ -47,11 +44,10 @@ class _VipPageState extends State<VipPage> {
   @override
   void dispose() {
     _viewModel.removeListener(_onVipStateChanged);
-    _paymentSubscription?.cancel(); // The cancelable object handles removal.
+    _paymentSubscription?.cancel();
     super.dispose();
   }
 
-  /// Listens for one-time events from the ViewModel to show SnackBars or navigate.
   void _onVipStateChanged() {
     if (!mounted) return;
     if (_viewModel.event == VipEvent.purchaseSuccess) {
@@ -59,7 +55,7 @@ class _VipPageState extends State<VipPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('支付成功！'), backgroundColor: Colors.green),
       );
-      Navigator.of(context).pop(true); // Pop with a success flag
+      Navigator.of(context).pop(true);
     } else if (_viewModel.event == VipEvent.purchaseError) {
       _viewModel.consumeEvent();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -78,8 +74,12 @@ class _VipPageState extends State<VipPage> {
         children: [
           Positioned.fill(
             child: Container(
-              color: const Color(0xFFE3F2FD),
-              // child: Image.asset('assets/images/vip_background.png', ...),
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/images/vip_bg.png'),
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
           ),
           Positioned(
@@ -89,23 +89,26 @@ class _VipPageState extends State<VipPage> {
           ),
           Column(
             children: [
-              SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.32),
               Expanded(
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
+                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5))],
                     ),
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5))],
-                  ),
-                  child: Column(
-                    children: [
-                      _buildVipTypeTabs(viewModel),
-                      Expanded(child: _buildContent(viewModel)),
-                      _buildBottomBar(viewModel, bottomPadding),
-                    ],
+                    child: Column(
+                      children: [
+                        _buildVipTypeTabs(viewModel),
+                        Expanded(child: _buildContent(viewModel)),
+                        _buildBottomBar(viewModel, bottomPadding),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -117,13 +120,13 @@ class _VipPageState extends State<VipPage> {
   }
 
   Widget _buildContent(VipViewModel viewModel) {
-    if (viewModel.isLoading) {
+    if (viewModel.isLoadingList) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (viewModel.errorMessage != null) {
+    if (viewModel.listErrorMessage != null) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(viewModel.errorMessage!),
+          Text(viewModel.listErrorMessage!),
           const SizedBox(height: 8),
           ElevatedButton(
             onPressed: () => viewModel.fetchVipList(viewModel.currentVipType),
@@ -136,21 +139,84 @@ class _VipPageState extends State<VipPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          const SizedBox(height: 24),
+          //const SizedBox(height: 24), // Using the padding from your original code
           _buildPackageGrid(viewModel),
-          const SizedBox(height: 24),
+          //const SizedBox(height: 14),
+
+          // --- START: MODIFICATION ---
+          _buildTipMessage(viewModel),
+          // --- END: MODIFICATION ---
+
+          const SizedBox(height: 14),
           _buildInfoBox(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
           _buildPaymentMethods(viewModel),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
         ],
       ),
     );
   }
 
+  // --- START: MODIFICATION - New widget to display the tip message ---
+  Widget _buildTipMessage(VipViewModel viewModel) {
+    final selectedPackage = viewModel.selectedPackage;
+    // If no package is selected or it doesn't have a tip message, return an empty widget.
+    if (selectedPackage == null || selectedPackage.tipMsg == null || selectedPackage.tipMsg!.isEmpty) {
+      return const SizedBox(height: 0.0);
+    }
+
+    final tipMsg = selectedPackage.tipMsg!;
+    final tipUrl = selectedPackage.tipUrl;
+    final isClickable = tipUrl != null && tipUrl.isNotEmpty;
+
+    var textSpans = <TextSpan>[
+      TextSpan(
+        text: tipMsg,
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.grey.shade600,
+        ),
+      ),
+    ];
+
+    if (isClickable) {
+      textSpans.addAll([
+        const TextSpan(text: ', '),
+        TextSpan(
+          text: '点击查看折算规则',
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.blueAccent,
+            decoration: TextDecoration.underline,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () {
+              // Navigate to the WebViewPage
+              Navigator.of(context).pushNamed(
+                AppRoutes.webview,
+                arguments: {
+                  'url': tipUrl,
+                  'title': '会员折算规则',
+                },
+              );
+            },
+        ),
+      ]);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: Text.rich(
+        TextSpan(children: textSpans),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+  // --- END: MODIFICATION ---
+
   Widget _buildVipTypeTabs(VipViewModel viewModel) {
     return Padding(
-      padding: const EdgeInsets.only(top: 24.0, left: 16, right: 16),
+      padding: const EdgeInsets.only(top: 14.0, left: 16, right: 16, bottom: 14),
       child: Row(children: [
         _buildTab(viewModel, title: '普通会员', type: 1),
         const SizedBox(width: 16),
@@ -163,7 +229,7 @@ class _VipPageState extends State<VipPage> {
     final isSelected = viewModel.currentVipType == type;
     return Expanded(
       child: GestureDetector(
-        onTap: isSelected ? null : () => viewModel.fetchVipList(type),
+        onTap: isSelected || viewModel.isLoadingList ? null : () => viewModel.fetchVipList(type),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
@@ -187,6 +253,7 @@ class _VipPageState extends State<VipPage> {
 
   Widget _buildPackageGrid(VipViewModel viewModel) {
     return GridView.builder(
+      padding: EdgeInsets.zero,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -238,10 +305,10 @@ class _VipPageState extends State<VipPage> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(duration, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text('¥ ${package.price}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                Text('¥ ${package.price}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
                 if (originalPrice != null && originalPrice.isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text('¥$originalPrice', style: TextStyle(fontSize: 12, color: Colors.grey.shade500, decoration: TextDecoration.lineThrough)),
+                  Text('¥$originalPrice', style: TextStyle(fontSize: 10, color: Colors.grey.shade500, decoration: TextDecoration.lineThrough)),
                 ],
               ]),
             ),
@@ -268,35 +335,76 @@ class _VipPageState extends State<VipPage> {
       ));
     }
 
-    return Column(
+    return Row(
       children: [
-        _buildPaymentButton(viewModel, title: '微信支付', icon: Icons.wechat, iconColor: Colors.green, method: PaymentMethod.wechat),
-        const SizedBox(height: 12),
-        _buildPaymentButton(viewModel, title: '支付宝支付', icon: Icons.account_balance_wallet_rounded, iconColor: Colors.blue, method: PaymentMethod.alipay),
+        Expanded(
+          child: _buildPaymentButton(
+            viewModel,
+            title: '微信支付',
+            icon: Icons.wechat,
+            iconColor: Colors.green,
+            method: PaymentMethod.wechat,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildPaymentButton(
+            viewModel,
+            title: '支付宝支付',
+            imageAsset: 'assets/images/alipay_icon.png',
+            method: PaymentMethod.alipay,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildPaymentButton(VipViewModel viewModel, {required String title, required IconData icon, required Color iconColor, required PaymentMethod method}) {
+  Widget _buildPaymentButton(
+      VipViewModel viewModel, {
+        required String title,
+        required PaymentMethod method,
+        IconData? icon,
+        Color? iconColor,
+        String? imageAsset,
+      }) {
+    assert(icon != null || imageAsset != null, 'Either icon or imageAsset must be provided.');
+    assert(icon == null || imageAsset == null, 'Cannot provide both icon and imageAsset.');
+
     final isSelected = viewModel.selectedPaymentMethod == method;
+    final selectedColor = const Color(0xFFE3F2FD);
+    final unselectedColor = Colors.grey[100];
+    final selectedBorder = Border.all(color: Colors.blueAccent, width: 1.5);
+
+    Widget iconWidget;
+    if (imageAsset != null) {
+      iconWidget = Image.asset(imageAsset, width: 26, height: 26);
+    } else {
+      iconWidget = Icon(icon!, color: iconColor, size: 26);
+    }
+
     return GestureDetector(
       onTap: () => viewModel.selectPaymentMethod(method),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
-        child: Row(children: [
-          Icon(icon, color: iconColor, size: 28),
-          const SizedBox(width: 12),
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-          const Spacer(),
-          Icon(isSelected ? Icons.check_circle : Icons.circle_outlined, color: isSelected ? Colors.blueAccent : Colors.grey),
-        ]),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? selectedColor : unselectedColor,
+          borderRadius: BorderRadius.circular(8),
+          border: isSelected ? selectedBorder : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            iconWidget,
+            const SizedBox(width: 8),
+            Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildBottomBar(VipViewModel viewModel, double bottomPadding) {
-    final isLoading = viewModel.state == VipState.loading;
+    final isPurchasing = viewModel.isPurchasing;
 
     return Container(
       padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomPadding),
@@ -323,7 +431,7 @@ class _VipPageState extends State<VipPage> {
         ]),
         const SizedBox(height: 12),
         ElevatedButton(
-          onPressed: (isLoading || !viewModel.isPayButtonEnabled) ? null : () => viewModel.purchaseVip(),
+          onPressed: (isPurchasing || !viewModel.isPayButtonEnabled) ? null : () => viewModel.purchaseVip(),
           style: ElevatedButton.styleFrom(
             minimumSize: const Size(double.infinity, 50),
             backgroundColor: Colors.blueAccent,
@@ -331,7 +439,7 @@ class _VipPageState extends State<VipPage> {
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
           ),
-          child: isLoading
+          child: isPurchasing
               ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
               : const Text('立即支付', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ),

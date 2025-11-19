@@ -5,8 +5,12 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../common/routes.dart';
 import '../../../auth/presentation/provider/auth_viewmodel.dart';
-import '../../../../mobile/pages/home_page.dart'; // RustDesk's original HomePage
+import '../../../../mobile/pages/home_page.dart';
 import '../../../auth/presentation/pages/password_login_page.dart';
+
+// --- 新增：为了获取 VipRepository ---
+import '../../../../di_container.dart';
+import '../../../vip/domain/repositories/vip_repository.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -16,59 +20,83 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  // A flag to track if the initial privacy check is complete.
+  // 标记初始化是否完成（隐私协议 + 登录检查 + 配置更新）
   bool _privacyCheckCompleted = false;
 
   @override
   void initState() {
     super.initState();
-    // Start the initialization process as soon as the widget is created.
     _initializeApp();
   }
 
-  /// Handles the entire app startup logic: privacy check and initial login status check.
   Future<void> _initializeApp() async {
-    // 1. Check if the user has previously agreed to the privacy policy.
+    print("🔍 [AppShell] 正在初始化应用...");
+
     final prefs = await SharedPreferences.getInstance();
     final bool hasAgreed = prefs.getBool('has_agreed_privacy') ?? false;
 
     if (!hasAgreed) {
-      // If not, show the privacy dialog.
-      // We use `addPostFrameCallback` to ensure the dialog is shown after the first frame.
+      print("🔍 [AppShell] 用户尚未同意隐私协议，显示弹窗");
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final bool? agreed = await _showPrivacyDialog();
         if (agreed == true) {
-          // If they agree, save the preference and then proceed to check login status.
           await prefs.setBool('has_agreed_privacy', true);
-          _completeInitialization();
+          // 同意后，继续执行初始化
+          await _completeInitialization();
         } else {
-          // If they disagree, exit the app.
           SystemNavigator.pop();
         }
       });
     } else {
-      // If they have already agreed, proceed directly.
-      _completeInitialization();
+      print("🔍 [AppShell] 用户已同意隐私协议");
+      // 已同意，直接执行初始化
+      await _completeInitialization();
     }
   }
 
-  /// Finalizes initialization by checking login state and updating the UI.
-  void _completeInitialization() {
+  /// 核心初始化逻辑：检查登录状态 -> (如果已登录) 更新服务器配置 -> 显示界面
+  Future<void> _completeInitialization() async {
+    if (!mounted) return;
+
+    // 1. 检查登录状态
+    print("🔍 [AppShell] 正在检查登录状态...");
+    final authViewModel = context.read<AuthViewModel>();
+    await authViewModel.checkInitialLoginState();
+    print("🔍 [AppShell] 登录状态: ${authViewModel.isLoggedIn}");
+
+    // 2. 如果已登录，尝试更新服务器配置 (/r_desk_config_data)
+    if (authViewModel.isLoggedIn) {
+      print("🚀 [AppShell] 用户已登录，开始调用 /r_desk_config_data 更新配置...");
+      try {
+        // 使用 getIt 获取 VipRepository 实例
+        if (getIt.isRegistered<VipRepository>()) {
+          final vipRepository = getIt<VipRepository>();
+          await vipRepository.fetchAndApplyServerConfig();
+          print("✅ [AppShell] 服务器配置更新成功！");
+        } else {
+          print("❌ [AppShell] 错误：VipRepository 未注册");
+        }
+      } catch (e) {
+        // 捕获异常，防止因为网络问题导致进不去主页
+        print("❌ [AppShell] 服务器配置更新失败: $e");
+      }
+    } else {
+      print("⚠️ [AppShell] 用户未登录，跳过配置更新");
+    }
+
+    // 3. 标记完成，更新 UI
     if (mounted) {
-      // Tell the AuthViewModel to check the initial login state from storage.
-      context.read<AuthViewModel>().checkInitialLoginState();
-      // Mark the privacy check as complete to switch from the loading screen.
       setState(() {
         _privacyCheckCompleted = true;
       });
+      print("✅ [AppShell] 初始化流程结束，显示 UI");
     }
   }
 
-  /// Displays the modal dialog for the privacy policy and user agreement.
   Future<bool?> _showPrivacyDialog() {
     return showDialog<bool>(
       context: context,
-      barrierDismissible: false, // User must make a choice.
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -103,7 +131,6 @@ class _AppShellState extends State<AppShell> {
                 ),
               ),
               const SizedBox(height: 24),
-              // "Agree" Button
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(true),
                 style: ElevatedButton.styleFrom(
@@ -115,7 +142,6 @@ class _AppShellState extends State<AppShell> {
                 child: const Text('同意', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 12),
-              // "Disagree" Button
               OutlinedButton(
                 onPressed: () => Navigator.of(context).pop(false),
                 style: OutlinedButton.styleFrom(
@@ -135,26 +161,20 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    // While the privacy check is in progress, show a loading indicator.
     if (!_privacyCheckCompleted) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    // After the privacy check, use a Consumer to reactively switch between
-    // the authenticated and unauthenticated states.
     return Consumer<AuthViewModel>(
       builder: (context, authViewModel, child) {
         if (authViewModel.isLoggedIn) {
-          // If the user is logged in, show the original HomePage from RustDesk.
           return HomePage();
         } else {
-          // If the user is not logged in, show the authentication flow.
-          // We use a Navigator to manage the auth pages (login, register, etc.).
           return Navigator(
-            key: const ValueKey('AuthNavigator'), // A key helps Flutter distinguish this navigator
-            initialRoute: AppRoutes.login, // The entry point for the auth flow
+            key: const ValueKey('AuthNavigator'),
+            initialRoute: AppRoutes.login,
             onGenerateRoute: AppRoutes.onGenerateRoute,
           );
         }

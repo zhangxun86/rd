@@ -4,7 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../common/routes.dart';
-import '../../../auth/domain/repositories/auth_repository.dart';
+import '../../../../di_container.dart'; // 需要导入 getIt
+import '../../../../mobile/pages/home_page.dart'; // 导入 RustDesk 的主页
+import '../../../auth/presentation/pages/login_page.dart'; // 导入登录页
+import '../../../auth/presentation/provider/auth_viewmodel.dart'; // 导入 AuthViewModel
+import '../../../vip/domain/repositories/vip_repository.dart'; // 导入 VipRepository
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -16,56 +20,70 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage> {
   static const String _privacyAgreedKey = 'has_agreed_privacy';
 
+  // --- 1. 定义状态变量 ---
+  // 这个变量控制是否显示加载圈。当隐私协议检查完成且登录状态检查完成后，设为 true。
+  bool _isInitialized = false;
+
   @override
   void initState() {
     super.initState();
-    // Use addPostFrameCallback to ensure the context is available for dialogs.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkPrivacyAndNavigate();
+      _initializeApp();
     });
   }
 
-  Future<void> _checkPrivacyAndNavigate() async {
+  Future<void> _initializeApp() async {
     final prefs = await SharedPreferences.getInstance();
     final bool hasAgreed = prefs.getBool(_privacyAgreedKey) ?? false;
 
     if (!hasAgreed) {
-      // If the user hasn't agreed, show the privacy dialog.
       final bool? agreed = await _showPrivacyDialog();
       if (agreed == true) {
-        // If they agree, save the preference and proceed.
         await prefs.setBool(_privacyAgreedKey, true);
-        _checkLoginStatusAndNavigate();
+        await _checkLoginAndConfig();
       } else {
-        // If they disagree, exit the app.
         SystemNavigator.pop();
       }
     } else {
-      // If they have already agreed, proceed directly.
-      _checkLoginStatusAndNavigate();
+      await _checkLoginAndConfig();
     }
   }
 
-  Future<void> _checkLoginStatusAndNavigate() async {
-    // Use context.read as we are in a callback.
-    final authRepository = context.read<AuthRepository>();
-    final token = await authRepository.getToken();
+  Future<void> _checkLoginAndConfig() async {
+    if (!mounted) return;
+
+    print("🔍 [SplashPage] 开始检查登录状态...");
+
+    final authViewModel = context.read<AuthViewModel>();
+    await authViewModel.checkInitialLoginState();
+
+    print("🔍 [SplashPage] 登录状态: ${authViewModel.isLoggedIn}");
+
+    if (authViewModel.isLoggedIn) {
+      print("🚀 [SplashPage] 用户已登录，正在更新服务器配置...");
+      try {
+        final vipRepository = getIt<VipRepository>();
+        await vipRepository.fetchAndApplyServerConfig();
+        print("✅ [SplashPage] 服务器配置更新成功");
+      } catch (e) {
+        print("❌ [SplashPage] 服务器配置更新失败 (不影响进入主页): $e");
+      }
+    } else {
+      print("⚠️ [SplashPage] 用户未登录，跳过配置更新");
+    }
 
     if (mounted) {
-      if (token != null && token.isNotEmpty) {
-        // User is logged in, go to home page.
-        Navigator.of(context).pushReplacementNamed(AppRoutes.home);
-      } else {
-        // User is not logged in, go to login page.
-        Navigator.of(context).pushReplacementNamed(AppRoutes.login);
-      }
+      setState(() {
+        // --- 2. 这里使用正确的变量名 _isInitialized ---
+        _isInitialized = true;
+      });
     }
   }
 
   Future<bool?> _showPrivacyDialog() {
     return showDialog<bool>(
       context: context,
-      barrierDismissible: false, // User must make a choice.
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -87,20 +105,19 @@ class _SplashPageState extends State<SplashPage> {
                     TextSpan(
                       text: '《用户协议》',
                       style: const TextStyle(color: Colors.cyan),
-                      recognizer: TapGestureRecognizer()..onTap = () { /* TODO: Show User Agreement */ },
+                      recognizer: TapGestureRecognizer()..onTap = () { /* TODO */ },
                     ),
                     const TextSpan(text: '和'),
                     TextSpan(
                       text: '《隐私政策》',
                       style: const TextStyle(color: Colors.cyan),
-                      recognizer: TapGestureRecognizer()..onTap = () { /* TODO: Show Privacy Policy */ },
+                      recognizer: TapGestureRecognizer()..onTap = () { /* TODO */ },
                     ),
-                    const TextSpan(text: '的全部内容，为向你提供特定服务和功能，在使用过程中我们可能会获取您的设备信息、位置信息、存储权限等个人信息。点击“同意“即表示您已阅读并同意全部条款。若选择不同意，将无法使用我们的产品和服务，并退出应用。'),
+                    const TextSpan(text: '的全部内容。点击“同意“即表示您已阅读并同意全部条款。若选择不同意，将无法使用我们的产品和服务，并退出应用。'),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
-              // "Agree" Button
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(true),
                 style: ElevatedButton.styleFrom(
@@ -112,7 +129,6 @@ class _SplashPageState extends State<SplashPage> {
                 child: const Text('同意', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 12),
-              // "Disagree" Button
               OutlinedButton(
                 onPressed: () => Navigator.of(context).pop(false),
                 style: OutlinedButton.styleFrom(
@@ -132,12 +148,27 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
-    // The splash page can be a simple loading indicator or a branded screen.
-    return const Scaffold(
-      body: Center(
-        // You can put your app logo here
-        child: CircularProgressIndicator(),
-      ),
+    // --- 3. 使用 _isInitialized 判断是否显示加载圈 ---
+    if (!_isInitialized) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return Consumer<AuthViewModel>(
+      builder: (context, authViewModel, child) {
+        if (authViewModel.isLoggedIn) {
+          return HomePage();
+        } else {
+          return Navigator(
+            key: const ValueKey('AuthNavigator'),
+            initialRoute: AppRoutes.login,
+            onGenerateRoute: AppRoutes.onGenerateRoute,
+          );
+        }
+      },
     );
   }
 }

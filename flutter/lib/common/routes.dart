@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hbb/common/pages/webview_page.dart';
 import 'package:flutter_hbb/mobile/pages/settings_page.dart';
 import '../features/auth/presentation/pages/forgot_password_page.dart';
 import '../features/auth/presentation/pages/password_login_page.dart';
@@ -22,6 +23,7 @@ class AppRoutes {
   static const String feedback = '/feedback';
   static const String vip = '/vip';
   static const String setting = '/setting';
+  static const String webview = '/webview';
 
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -46,6 +48,14 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const VipPage());
       case setting: // <-- 3. 添加处理新路由的 case
         return MaterialPageRoute(builder: (_) => SettingsPage());
+      case webview:
+        final args = settings.arguments as Map<String, String>;
+        return MaterialPageRoute(
+          builder: (_) => WebViewPage(
+            url: args['url']!,
+            title: args['title'] ?? '详情',
+          ),
+        );
       default:
         return MaterialPageRoute(builder: (_) => const SplashPage());// Default to login
     }

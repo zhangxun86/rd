@@ -6,6 +6,7 @@ class PriceListItemModel {
   final String? tag;
   final String? note;
   final String? tipMsg;
+  final String? tipUrl;
 
   PriceListItemModel({
     required this.id,
@@ -14,6 +15,7 @@ class PriceListItemModel {
     this.tag,
     this.note,
     this.tipMsg,
+    this.tipUrl
   });
 
   factory PriceListItemModel.fromJson(Map<String, dynamic> json) {
@@ -24,6 +26,7 @@ class PriceListItemModel {
       tag: json['tag'] as String?,
       note: json['note'] as String?,
       tipMsg: json['tip_msg'] as String?,
+      tipUrl: json['tip_url'] as String?,
     );
   }
 }

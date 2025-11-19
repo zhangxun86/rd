@@ -173,6 +173,7 @@ flutter:
     - .env
     - .env.dev
     - assets/index.html
+    - assets/images/
 
   fonts:
     - family: GestureIcons

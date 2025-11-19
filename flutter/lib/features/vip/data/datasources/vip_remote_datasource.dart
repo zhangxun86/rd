@@ -45,4 +45,19 @@ class VipRemoteDataSource {
       rethrow;
     }
   }
+
+  Future<String> fetchServerConfig() async {
+    try {
+      // ApiInterceptor will add the token automatically.
+      final response = await _dio.get('/r_desk_config_data');
+
+      // ApiInterceptor unboxes the 'data' field.
+      // The response data is Map: {"config_data": "..."}
+      final Map<String, dynamic> data = response.data;
+      return data['config_data'] as String? ?? '';
+    } on DioException {
+      rethrow;
+    }
+  }
+
 }

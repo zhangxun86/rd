@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_network_kit/flutter_network_kit.dart';
+import 'package:get/get_rx/src/rx_types/rx_types.dart';
+import '../../../../common.dart';
 import '../../domain/repositories/vip_repository.dart';
 import '../datasources/vip_remote_datasource.dart';
 import '../models/vip_info_model.dart';
@@ -36,4 +38,33 @@ class VipRepositoryImpl implements VipRepository {
       return Failure(ApiException(message: 'Failed to create payment order', requestOptions: e.requestOptions));
     }
   }
+
+  @override
+  Future<void> fetchAndApplyServerConfig() async {
+    try {
+      // 1. Fetch the encrypted/encoded config string
+      final configData = await _remoteDataSource.fetchServerConfig();
+
+      if (configData.isNotEmpty) {
+        // 2. Decode using RustDesk's logic
+        final serverConfig = ServerConfig.decode(configData);
+
+        print("VIP Purchase Success: Updating server config to ID=${serverConfig.idServer}");
+
+        // 3. Apply the configuration using setServerConfig (from setting_widgets.dart)
+        // We pass empty RxStrings because we don't need UI error feedback here (it's a background update)
+        await setServerConfig(
+            null,
+            [RxString(''), RxString(''), RxString('')],
+            serverConfig
+        );
+        print("Server configuration updated successfully.");
+      }
+    } catch (e) {
+      // Log error but don't throw, as payment was already successful.
+      // We don't want to confuse the user if this background step fails.
+      print("Error updating server config after payment: $e");
+    }
+  }
+
 }
