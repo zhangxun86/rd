@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../provider/auth_viewmodel.dart';
 import '../../../../common/routes.dart';
 import 'captcha_page.dart';
+import '../../domain/services/captcha_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -13,14 +14,16 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  // --- State variables ---
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
   final _codeController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _agreedToTerms = false;
 
-  // Countdown timer state
+  late final AuthViewModel _viewModel;
+  late final FocusNode _codeFocusNode;
+  StreamSubscription<AuthEvent>? _authEventSubscription;
+
   Timer? _timer;
   int _countdownSeconds = 60;
   bool _isCountingDown = false;
@@ -28,23 +31,9 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void initState() {
     super.initState();
-    // We can still listen for major events like successful registration for navigation.
-    // The listen method is simplified to just use context.read.
-    final viewModel = context.read<AuthViewModel>();
-    viewModel.addListener(() {
-      if (viewModel.event == AuthEvent.registrationSuccess) {
-        viewModel.consumeEvent();
-        if (mounted) Navigator.of(context).pushReplacementNamed(AppRoutes.home);
-      } else if (viewModel.event == AuthEvent.registrationError) {
-        viewModel.consumeEvent();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(viewModel.errorMessage ?? '注册失败'),
-            backgroundColor: Colors.red,
-          ));
-        }
-      }
-    });
+    _codeFocusNode = FocusNode();
+    _viewModel = context.read<AuthViewModel>();
+    _authEventSubscription = _viewModel.authEvents.listen(_handleAuthEvent);
   }
 
   @override
@@ -52,97 +41,85 @@ class _RegisterPageState extends State<RegisterPage> {
     _mobileController.dispose();
     _passwordController.dispose();
     _codeController.dispose();
+    _codeFocusNode.dispose();
     _timer?.cancel();
-    // We don't need to remove the listener if it's created inline with context.read,
-    // but doing so is a good practice if the ViewModel outlives the page.
-    // context.read<AuthViewModel>().removeListener(...);
+    _authEventSubscription?.cancel();
     super.dispose();
   }
 
   void _startCountdown() {
-    if (_isCountingDown) return;
-
+    if (!mounted || _isCountingDown) return;
     setState(() {
       _isCountingDown = true;
       _countdownSeconds = 60;
     });
-
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
       }
-      if (_countdownSeconds > 0) {
-        setState(() {
+      setState(() {
+        if (_countdownSeconds > 1) {
           _countdownSeconds--;
-        });
-      } else {
-        timer.cancel();
-        setState(() {
+        } else {
           _isCountingDown = false;
-        });
-      }
+          timer.cancel();
+        }
+      });
     });
   }
 
-  Future<void> _onGetVerificationCode(AuthViewModel viewModel) async {
-    if (_isCountingDown || viewModel.isSendingSms) return;
+  void _handleAuthEvent(AuthEvent event) {
+    if (!mounted) return;
 
-    FocusScope.of(context).unfocus();
-    if (_mobileController.text.trim().isEmpty) {
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+
+    if (event == AuthEvent.registrationSuccess) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+    } else if (event == AuthEvent.registrationError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_viewModel.errorMessage ?? 'An unknown error occurred'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } else if (event == AuthEvent.smsCodeRequestSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('短信验证码已发送！'),
+        backgroundColor: Colors.green,
+      ));
+      _startCountdown();
+      _codeFocusNode.requestFocus();
+    } else if (event == AuthEvent.smsCodeRequestError) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_viewModel.smsErrorMessage ?? '获取验证码失败'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  Future<void> _onGetVerificationCode() async {
+    if (_isCountingDown) return;
+    if (_mobileController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先输入手机号码')));
       return;
     }
 
-    final captchaResult = await Navigator.of(context).push<String?>(
-      PageRouteBuilder(
-        opaque: false,
-        pageBuilder: (context, _, __) => const CaptchaPage(),
-        transitionsBuilder: (context, animation, _, child) => FadeTransition(opacity: animation, child: child),
-      ),
+    final captchaService = CaptchaService(context);
+    await captchaService.requestSmsCodeForMobile(
+      _mobileController.text.trim(),
+      type: 'reg',
     );
-
-    if (captchaResult != null && captchaResult.isNotEmpty) {
-      // Call the ViewModel and await the boolean result.
-      final success = await viewModel.requestSmsCode(
-        mobile: _mobileController.text.trim(),
-        aliCaptchaParam: captchaResult,
-        type: 'reg',
-      );
-
-      // --- THE FIX ---
-      // If the API call was successful, start the countdown and show success message directly.
-      if (success && mounted) {
-        _startCountdown();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('短信验证码已发送！'),
-          backgroundColor: Colors.green,
-        ));
-      } else if (!success && mounted) {
-        // If it failed, show the specific error message for the SMS request.
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(viewModel.smsErrorMessage ?? '获取验证码失败'),
-          backgroundColor: Colors.red,
-        ));
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('滑动验证已取消'),
-          backgroundColor: Colors.orange,
-        ));
-      }
-    }
   }
 
-  void _onRegister(AuthViewModel viewModel) {
+  void _onRegister() {
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先阅读并同意用户协议和隐私政策')));
       return;
     }
     FocusScope.of(context).unfocus();
     if (_formKey.currentState?.validate() ?? false) {
-      viewModel.register(
+      context.read<AuthViewModel>().register(
         mobile: _mobileController.text.trim(),
         code: _codeController.text.trim(),
         pwd: _passwordController.text.trim(),
@@ -152,54 +129,56 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    // We use `context.watch` to rebuild when loading states change.
-    final viewModel = context.watch<AuthViewModel>();
-    final isRegistering = viewModel.state == AuthState.loading;
+    return Consumer<AuthViewModel>(
+        builder: (context, viewModel, child) {
+          final isLoading = viewModel.state == AuthState.loading;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('账号注册'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: const BackButton(color: Colors.black),
-        foregroundColor: Colors.black,
-      ),
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 40),
-                _buildTextField(controller: _mobileController, labelText: '手机号码', hintText: '请输入手机号码', keyboardType: TextInputType.phone),
-                const SizedBox(height: 20),
-                _buildTextField(controller: _passwordController, labelText: '密码', hintText: '请输入密码', isPassword: true),
-                const SizedBox(height: 20),
-                _buildCodeField(viewModel),
-                const SizedBox(height: 30),
-                _buildAgreementRow(),
-                const SizedBox(height: 30),
-                ElevatedButton(
-                  onPressed: isRegistering ? null : () => _onRegister(viewModel),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.blueAccent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                    elevation: 0,
-                  ),
-                  child: isRegistering
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                      : const Text('注册并登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ),
-              ],
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('账号注册'),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: const BackButton(color: Colors.black),
+              foregroundColor: Colors.black,
             ),
-          ),
-        ),
-      ),
+            backgroundColor: Colors.white,
+            body: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 40),
+                      _buildTextField(controller: _mobileController, labelText: '手机号码', hintText: '请输入手机号码', keyboardType: TextInputType.phone),
+                      const SizedBox(height: 20),
+                      _buildTextField(controller: _passwordController, labelText: '密码', hintText: '请输入密码', isPassword: true),
+                      const SizedBox(height: 20),
+                      _buildCodeField(viewModel),
+                      const SizedBox(height: 30),
+                      _buildAgreementRow(),
+                      const SizedBox(height: 30),
+                      ElevatedButton(
+                        onPressed: isLoading ? null : _onRegister,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.blueAccent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          elevation: 0,
+                        ),
+                        child: isLoading
+                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                            : const Text('注册并登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
     );
   }
 
@@ -230,9 +209,7 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Widget _buildCodeField(AuthViewModel viewModel) {
-    // Use `context.watch` to only rebuild this widget when `isSendingSms` changes.
-    final isSendingSms = context.watch<AuthViewModel>().isSendingSms;
-
+    final isSendingSms = viewModel.isSendingSms;
     return TextFormField(
       controller: _codeController,
       keyboardType: TextInputType.number,
@@ -247,13 +224,13 @@ class _RegisterPageState extends State<RegisterPage> {
         filled: true,
         fillColor: Colors.grey.shade100,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        suffixIcon: _buildSuffixIcon(isSendingSms, viewModel),
+        suffixIcon: _buildSuffixIcon(isSendingSms),
       ),
       validator: (value) => (value == null || value.isEmpty) ? '此项不能为空' : null,
     );
   }
 
-  Widget _buildSuffixIcon(bool isSendingSms, AuthViewModel viewModel) {
+  Widget _buildSuffixIcon(bool isSendingSms) {
     if (isSendingSms) {
       return const Padding(
         padding: EdgeInsets.all(14.0),
@@ -272,7 +249,7 @@ class _RegisterPageState extends State<RegisterPage> {
       );
     } else {
       return TextButton(
-        onPressed: () => _onGetVerificationCode(viewModel),
+        onPressed: _onGetVerificationCode,
         child: const Text('获取验证码', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
       );
     }

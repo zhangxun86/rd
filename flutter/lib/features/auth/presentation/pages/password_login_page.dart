@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -14,46 +15,40 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _agreedToTerms = true; // 默认勾选，保持与验证码登录页一致
+  bool _agreedToTerms = true;
 
   late final AuthViewModel _viewModel;
+  StreamSubscription<AuthEvent>? _authEventSubscription;
 
   @override
   void initState() {
     super.initState();
     _viewModel = context.read<AuthViewModel>();
-    // 注册监听器，这是处理错误提示的关键
-    _viewModel.addListener(_onAuthStateChanged);
+    _authEventSubscription = _viewModel.authEvents.listen(_handleAuthEvent);
   }
 
   @override
   void dispose() {
     _mobileController.dispose();
     _passwordController.dispose();
-    // 移除监听器
-    _viewModel.removeListener(_onAuthStateChanged);
+    _authEventSubscription?.cancel();
     super.dispose();
   }
 
-  // --- 核心修复：添加状态监听 ---
-  void _onAuthStateChanged() {
+  void _handleAuthEvent(AuthEvent event) {
     if (!mounted) return;
 
-    // 处理登录成功
-    if (_viewModel.event == AuthEvent.loginSuccess) {
-      _viewModel.consumeEvent();
+    // --- 核心修改：只监听密码登录相关的事件 ---
+    if (event == AuthEvent.loginWithPasswordSuccess) {
       Navigator.of(context).pushReplacementNamed(AppRoutes.home);
-    }
-    // 处理登录失败 (接口报错会走到这里)
-    else if (_viewModel.event == AuthEvent.loginError) {
-      _viewModel.consumeEvent();
+    } else if (event == AuthEvent.loginWithPasswordError) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(_viewModel.errorMessage ?? '登录失败'),
         backgroundColor: Colors.red,
       ));
     }
+    // ----------------------------------------
   }
-  // --- 修复结束 ---
 
   void _onLogin() {
     if (!_agreedToTerms) {
@@ -62,7 +57,6 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
     }
     FocusScope.of(context).unfocus();
     if (_formKey.currentState?.validate() ?? false) {
-      // 调用密码登录方法
       context.read<AuthViewModel>().loginWithPassword(
         mobile: _mobileController.text.trim(),
         pwd: _passwordController.text.trim(),
@@ -110,8 +104,6 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
                       const SizedBox(height: 10),
                       _buildAgreementRow(),
                       const SizedBox(height: 30),
-
-                      // --- Button Style Updated to match LoginPage ---
                       ElevatedButton(
                         onPressed: isLoading ? null : _onLogin,
                         style: ButtonStyle(
@@ -133,7 +125,6 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
                             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                             : const Text('登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
-                      // -----------------------------------------------
                     ],
                   ),
                 ),
@@ -176,7 +167,6 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
       ),
       validator: (value) {
         if (value == null || value.isEmpty) return '此项不能为空';
-        if (isPassword && (value.length < 6 || value.length > 30)) return '密码长度应为6-30位';
         return null;
       },
     );

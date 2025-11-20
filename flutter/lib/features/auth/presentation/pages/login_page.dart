@@ -19,30 +19,27 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   bool _agreedToTerms = true;
 
+  late final AuthViewModel _viewModel;
+  late final FocusNode _codeFocusNode;
+
+  StreamSubscription<AuthEvent>? _authEventSubscription;
+
   Timer? _timer;
   int _countdownSeconds = 60;
   bool _isCountingDown = false;
-  late final FocusNode _codeFocusNode;
+
+  // --- UI层防抖变量 ---
+  DateTime _lastSnackBarTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
   void initState() {
     super.initState();
     _codeFocusNode = FocusNode();
-    final viewModel = context.read<AuthViewModel>();
-    viewModel.addListener(() {
-      if (viewModel.event == AuthEvent.loginSuccess) {
-        viewModel.consumeEvent();
-        if (mounted) Navigator.of(context).pushReplacementNamed(AppRoutes.home);
-      } else if (viewModel.event == AuthEvent.loginError) {
-        viewModel.consumeEvent();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(viewModel.errorMessage ?? '登录失败'),
-            backgroundColor: Colors.red,
-          ));
-        }
-      }
-    });
+    _viewModel = context.read<AuthViewModel>();
+
+    // 确保先取消可能存在的订阅（虽然init里通常没有）
+    _authEventSubscription?.cancel();
+    _authEventSubscription = _viewModel.authEvents.listen(_handleAuthEvent);
   }
 
   @override
@@ -51,11 +48,13 @@ class _LoginPageState extends State<LoginPage> {
     _codeController.dispose();
     _codeFocusNode.dispose();
     _timer?.cancel();
+    // 必须取消订阅，否则会造成内存泄漏和重复监听
+    _authEventSubscription?.cancel();
     super.dispose();
   }
 
   void _startCountdown() {
-    if (_isCountingDown) return;
+    if (!mounted || _isCountingDown) return;
     setState(() {
       _isCountingDown = true;
       _countdownSeconds = 60;
@@ -65,17 +64,73 @@ class _LoginPageState extends State<LoginPage> {
         timer.cancel();
         return;
       }
-      if (_countdownSeconds > 0) {
-        setState(() => _countdownSeconds--);
-      } else {
-        timer.cancel();
-        setState(() => _isCountingDown = false);
-      }
+      setState(() {
+        if (_countdownSeconds > 0) {
+          _countdownSeconds--;
+        } else {
+          timer.cancel();
+          _isCountingDown = false;
+        }
+      });
     });
   }
 
-  Future<void> _onGetVerificationCode(AuthViewModel viewModel) async {
-    if (_isCountingDown || viewModel.isSendingSms) return;
+  void _handleAuthEvent(AuthEvent event) {
+    if (!mounted) return;
+
+    // --- 1. 检查页面可见性 ---
+    // 如果当前页面不在栈顶（例如已经跳到别的页面了），不处理事件
+    final isCurrent = ModalRoute.of(context)?.isCurrent ?? false;
+    if (!isCurrent) return;
+
+    // --- 2. UI层物理防抖 ---
+    // 强制限制 SnackBar 的弹出频率。如果距离上次弹出不到 500ms，直接忽略本次事件。
+    final now = DateTime.now();
+    if (now.difference(_lastSnackBarTime) < const Duration(milliseconds: 500)) {
+      return;
+    }
+
+    // 处理登录成功
+    if (event == AuthEvent.loginWithCodeSuccess) {
+      // 记录时间，避免重复
+      _lastSnackBarTime = now;
+      Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+    }
+    // 处理登录失败
+    else if (event == AuthEvent.loginWithCodeError) {
+      _lastSnackBarTime = now;
+      // 使用 removeCurrentSnackBar 立即清除旧的，避免堆叠
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_viewModel.errorMessage ?? '登录失败'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 2), // 设置较短的持续时间
+      ));
+    }
+    // 处理验证码发送成功
+    else if (event == AuthEvent.smsCodeRequestSuccess) {
+      _lastSnackBarTime = now;
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('短信验证码已发送！'),
+        backgroundColor: Colors.green,
+      ));
+      _startCountdown();
+      _codeFocusNode.requestFocus();
+    }
+    // 处理验证码发送失败
+    else if (event == AuthEvent.smsCodeRequestError) {
+      _lastSnackBarTime = now;
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_viewModel.smsErrorMessage ?? '获取验证码失败'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  Future<void> _onGetVerificationCode() async {
+    if (_isCountingDown) return;
 
     FocusScope.of(context).unfocus();
     if (_mobileController.text.trim().isEmpty) {
@@ -83,35 +138,38 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    final captchaService = CaptchaService(context);
-    final success = await captchaService.requestSmsCodeForMobile(
-      _mobileController.text.trim(),
-      type: 'login',
+    final captchaResult = await Navigator.of(context).push<String?>(
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, __, ___) => const CaptchaPage(),
+        transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
+      ),
     );
 
-    if (success && mounted) {
-      _startCountdown();
-      _codeFocusNode.requestFocus();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('短信验证码已发送！'),
-        backgroundColor: Colors.green,
-      ));
-    } else if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(viewModel.smsErrorMessage ?? '获取验证码失败'),
-        backgroundColor: Colors.red,
-      ));
+    if (captchaResult != null && captchaResult.isNotEmpty) {
+      await _viewModel.requestSmsCode(
+        mobile: _mobileController.text.trim(),
+        aliCaptchaParam: captchaResult,
+        type: 'login',
+      );
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('滑动验证已取消'),
+          backgroundColor: Colors.orange,
+        ));
+      }
     }
   }
 
-  void _onLogin(AuthViewModel viewModel) {
+  void _onLogin() {
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先阅读并同意用户协议和隐私政策')));
       return;
     }
     FocusScope.of(context).unfocus();
     if (_formKey.currentState?.validate() ?? false) {
-      viewModel.login(
+      _viewModel.login(
         mobile: _mobileController.text.trim(),
         code: _codeController.text.trim(),
       );
@@ -120,102 +178,95 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<AuthViewModel>();
-    final isLoading = viewModel.state == AuthState.loading;
+    // 使用 Consumer 监听加载状态，但不处理事件（事件由 Stream 处理）
+    return Consumer<AuthViewModel>(
+        builder: (context, viewModel, child) {
+          final isLoading = viewModel.state == AuthState.loading;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('验证码登录', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: const BackButton(color: Colors.black),
-        foregroundColor: Colors.black,
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pushReplacementNamed(AppRoutes.passwordLogin);
-            },
-            child: Text('密码登录', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 60),
-                _buildTextField(controller: _mobileController, labelText: '手机号码', hintText: '请输入手机号码', keyboardType: TextInputType.phone),
-                const SizedBox(height: 20),
-                _buildCodeField(viewModel),
-                const SizedBox(height: 30),
-                _buildAgreementRow(),
-                const SizedBox(height: 30),
-
-                // --- START: Modified Button Style ---
-                ElevatedButton(
-                  onPressed: isLoading ? null : () => _onLogin(viewModel),
-                  style: ButtonStyle(
-                    // 1. 使用 MaterialStateProperty 来根据状态设置背景色
-                    backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
-                      if (states.contains(MaterialState.disabled)) {
-                        return const Color(0xFFB4CDF8); // 不可点击时的浅蓝色
-                      }
-                      // 正常可点击时的深蓝色 (比之前更鲜艳)
-                      return const Color(0xFF2979FF);
-                    }),
-                    // 2. 设置文字颜色
-                    foregroundColor: MaterialStateProperty.all(Colors.white),
-                    // 3. 设置形状
-                    shape: MaterialStateProperty.all(
-                      RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                    ),
-                    // 4. 设置内边距
-                    padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
-                    // 5. 去除阴影
-                    elevation: MaterialStateProperty.all(0),
-                    // 6. (可选) 设置点击时的水波纹颜色
-                    overlayColor: MaterialStateProperty.all(Colors.white.withOpacity(0.2)),
-                  ),
-                  child: isLoading
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                      : const Text('登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('验证码登录', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black)),
+              backgroundColor: Colors.white,
+              elevation: 0,
+              leading: const BackButton(color: Colors.black),
+              foregroundColor: Colors.black,
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pushReplacementNamed(AppRoutes.passwordLogin);
+                  },
+                  child: Text('密码登录', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
                 ),
-                // --- END: Modified Button Style ---
-
-                const SizedBox(height: 24),
-                Center(
-                  child: Text.rich(
-                    TextSpan(
-                      text: '没有账号？ ',
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                      children: [
-                        TextSpan(
-                          text: '去注册',
-                          style: const TextStyle(
-                            color: Colors.blueAccent,
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
-                          ),
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () {
-                              Navigator.of(context).pushReplacementNamed(AppRoutes.register);
-                            },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                const SizedBox(width: 8),
               ],
             ),
-          ),
-        ),
-      ),
+            backgroundColor: Colors.white,
+            body: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 60),
+                      _buildTextField(controller: _mobileController, labelText: '手机号码', hintText: '请输入手机号码', keyboardType: TextInputType.phone),
+                      const SizedBox(height: 20),
+                      _buildCodeField(viewModel),
+                      const SizedBox(height: 30),
+                      _buildAgreementRow(),
+                      const SizedBox(height: 30),
+                      ElevatedButton(
+                        onPressed: isLoading ? null : _onLogin,
+                        style: ButtonStyle(
+                          backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
+                            if (states.contains(MaterialState.disabled)) {
+                              return const Color(0xFFB4CDF8);
+                            }
+                            return const Color(0xFF2979FF);
+                          }),
+                          foregroundColor: MaterialStateProperty.all(Colors.white),
+                          shape: MaterialStateProperty.all(
+                            RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          ),
+                          padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
+                          elevation: MaterialStateProperty.all(0),
+                          overlayColor: MaterialStateProperty.all(Colors.white.withOpacity(0.2)),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                            : const Text('登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 24),
+                      Center(
+                        child: Text.rich(
+                          TextSpan(
+                            text: '没有账号？ ',
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                            children: [
+                              TextSpan(
+                                text: '去注册',
+                                style: const TextStyle(
+                                  color: Colors.blueAccent,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () {
+                                    Navigator.of(context).pushReplacementNamed(AppRoutes.register);
+                                  },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
     );
   }
 
@@ -286,7 +337,7 @@ class _LoginPageState extends State<LoginPage> {
       );
     } else {
       return TextButton(
-        onPressed: () => _onGetVerificationCode(viewModel),
+        onPressed: _onGetVerificationCode,
         child: const Text('获取验证码', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
       );
     }

@@ -1,9 +1,7 @@
-import 'dart:convert';
-
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_network_kit/flutter_network_kit.dart';
-import '../../../../models/platform_model.dart';
 import '../../data/models/register_request_model.dart';
 import '../../domain/repositories/auth_repository.dart';
 
@@ -15,22 +13,22 @@ enum AuthEvent {
   registrationError,
   smsCodeRequestSuccess,
   smsCodeRequestError,
-  loginSuccess,
-  loginError,
+  loginWithCodeSuccess,
+  loginWithCodeError,
+  loginWithPasswordSuccess,
+  loginWithPasswordError,
   resetPasswordSuccess,
   resetPasswordError,
-  deleteAccountSuccess, // <-- NEW
-  deleteAccountError,   // <-- NEW
+  deleteAccountSuccess,
+  deleteAccountError,
 }
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
   AuthViewModel(this._authRepository);
 
-  // --- START: MODIFICATION 1 - Add login state management ---
   bool _isLoggedIn = false;
   bool get isLoggedIn => _isLoggedIn;
-  // --- END: MODIFICATION 1 ---
 
   AuthState _state = AuthState.idle;
   AuthState get state => _state;
@@ -44,52 +42,89 @@ class AuthViewModel extends ChangeNotifier {
   String? _smsErrorMessage;
   String? get smsErrorMessage => _smsErrorMessage;
 
-  AuthEvent _event = AuthEvent.none;
-  AuthEvent get event => _event;
+  final StreamController<AuthEvent> _eventController = StreamController<AuthEvent>.broadcast();
+  Stream<AuthEvent> get authEvents => _eventController.stream;
 
-  void consumeEvent() {
-    _event = AuthEvent.none;
+  // --- 核心修复：全局防抖变量 ---
+  DateTime _lastEventTime = DateTime.fromMillisecondsSinceEpoch(0);
+  AuthEvent _lastEvent = AuthEvent.none;
+  // ---------------------------
+
+  @override
+  void dispose() {
+    _eventController.close();
+    super.dispose();
   }
 
-  // --- START: MODIFICATION 2 - Add method to check initial state ---
-  /// Checks the initial login state from local storage.
-  /// This should be called once when the app starts.
+  // --- 核心修复：统一的事件发送入口 ---
+  // 所有事件发送必须经过这里，这里就像一个“安检口”，拦截所有重复事件
+  void _sendEvent(AuthEvent event) {
+    final now = DateTime.now();
+    // 如果是同一个事件，且间隔小于 1000 毫秒，直接丢弃！
+    if (event == _lastEvent && now.difference(_lastEventTime) < const Duration(milliseconds: 1000)) {
+      print("🛑 拦截到重复事件: $event");
+      return;
+    }
+
+    _lastEvent = event;
+    _lastEventTime = now;
+
+    print("✅ 发送事件: $event");
+    _eventController.add(event);
+  }
+  // --------------------------------
+
   Future<void> checkInitialLoginState() async {
     final token = await _authRepository.getToken();
     _isLoggedIn = token != null && token.isNotEmpty;
-    // Notify listeners so the AppShell can update
     notifyListeners();
   }
-  // --- END: MODIFICATION 2 ---
 
-  // --- START: MODIFICATION 3 - Add a logout method ---
-  /// Logs the user out and clears all stored data.
   Future<void> logout() async {
     await _authRepository.logout();
-    _isLoggedIn = false; // Update the login state
-    notifyListeners(); // Notify AppShell to switch to the login screen
+    _isLoggedIn = false;
+    notifyListeners();
   }
-  // --- END: MODIFICATION 3 ---
 
-  /// Helper method to handle the result of any authentication attempt.
+  Future<void> deleteAccount() async {
+    _state = AuthState.loading;
+    notifyListeners();
+
+    final result = await _authRepository.deleteAccount();
+
+    if (result is Success) {
+      _isLoggedIn = false;
+      _state = AuthState.success;
+      _sendEvent(AuthEvent.deleteAccountSuccess); // 使用 _sendEvent
+    } else if (result is Failure) {
+      _state = AuthState.error;
+      _extractErrorMessage(result as Failure);
+      _sendEvent(AuthEvent.deleteAccountError); // 使用 _sendEvent
+    }
+    notifyListeners();
+  }
+
+  void _extractErrorMessage(Failure failure) {
+    final exception = failure.exception;
+    if (exception is ApiException) {
+      _errorMessage = exception.message;
+      debugPrint(exception.toString());
+    } else {
+      _errorMessage = "An unexpected error occurred: ${exception.toString()}";
+    }
+  }
+
   void _handleAuthResult(Result result,
       {required AuthEvent successEvent, required AuthEvent errorEvent}) {
     if (result is Success) {
-      _isLoggedIn = true; // --- MODIFICATION 4: Update login state on success ---
+      _isLoggedIn = true;
       _state = AuthState.success;
-      _event = successEvent;
+      _sendEvent(successEvent); // 使用 _sendEvent
     } else if (result is Failure) {
-      _isLoggedIn = false; // Ensure logged in is false on failure
+      _isLoggedIn = false;
       _state = AuthState.error;
-      _event = errorEvent;
-
-      final exception = result.exception;
-      if (exception is ApiException) {
-        _errorMessage = exception.message;
-        debugPrint(exception.toString());
-      } else {
-        _errorMessage = "An unexpected error occurred: ${exception.toString()}";
-      }
+      _extractErrorMessage(result as Failure);
+      _sendEvent(errorEvent); // 使用 _sendEvent
     }
     notifyListeners();
   }
@@ -132,11 +167,17 @@ class AuthViewModel extends ChangeNotifier {
       code: code,
     );
 
-    _handleAuthResult(
-      result,
-      successEvent: AuthEvent.loginSuccess,
-      errorEvent: AuthEvent.loginError,
-    );
+    if (result is Success) {
+      _isLoggedIn = true;
+      _state = AuthState.success;
+      _sendEvent(AuthEvent.loginWithCodeSuccess); // 使用 _sendEvent
+    } else if (result is Failure) {
+      _isLoggedIn = false;
+      _state = AuthState.error;
+      _extractErrorMessage(result as Failure);
+      _sendEvent(AuthEvent.loginWithCodeError); // 使用 _sendEvent
+    }
+    notifyListeners();
   }
 
   Future<void> loginWithPassword({
@@ -152,11 +193,17 @@ class AuthViewModel extends ChangeNotifier {
       pwd: pwd,
     );
 
-    _handleAuthResult(
-      result,
-      successEvent: AuthEvent.loginSuccess,
-      errorEvent: AuthEvent.loginError,
-    );
+    if (result is Success) {
+      _isLoggedIn = true;
+      _state = AuthState.success;
+      _sendEvent(AuthEvent.loginWithPasswordSuccess); // 使用 _sendEvent
+    } else if (result is Failure) {
+      _isLoggedIn = false;
+      _state = AuthState.error;
+      _extractErrorMessage(result as Failure);
+      _sendEvent(AuthEvent.loginWithPasswordError); // 使用 _sendEvent
+    }
+    notifyListeners();
   }
 
   Future<bool> requestSmsCode({
@@ -177,13 +224,13 @@ class AuthViewModel extends ChangeNotifier {
     _isSendingSms = false;
 
     if (result is Success) {
-      _event = AuthEvent.smsCodeRequestSuccess;
+      _sendEvent(AuthEvent.smsCodeRequestSuccess); // 使用 _sendEvent
       notifyListeners();
       return true;
     } else {
-      _event = AuthEvent.smsCodeRequestError;
+      final failure = result as Failure;
+      final exception = failure.exception;
 
-      final exception = (result as Failure).exception;
       if (exception is ApiException) {
         _smsErrorMessage = exception.message;
         debugPrint(exception.toString());
@@ -191,6 +238,7 @@ class AuthViewModel extends ChangeNotifier {
         _smsErrorMessage = "Failed to get code: ${exception.toString()}";
       }
 
+      _sendEvent(AuthEvent.smsCodeRequestError); // 使用 _sendEvent
       notifyListeners();
       return false;
     }
@@ -211,38 +259,10 @@ class AuthViewModel extends ChangeNotifier {
       pwd: pwd,
     );
 
-    // This method can also use the helper for consistency.
     _handleAuthResult(
       result,
       successEvent: AuthEvent.resetPasswordSuccess,
       errorEvent: AuthEvent.resetPasswordError,
     );
   }
-
-  Future<void> deleteAccount() async {
-    _state = AuthState.loading;
-    _errorMessage = null;
-    notifyListeners();
-
-    final result = await _authRepository.deleteAccount();
-
-    if (result is Success) {
-      _state = AuthState.success;
-      _event = AuthEvent.deleteAccountSuccess;
-      // Also update the isLoggedIn flag
-      _isLoggedIn = false;
-    } else if (result is Failure) {
-      _state = AuthState.error;
-      _event = AuthEvent.deleteAccountError;
-
-      final exception = (result as Failure).exception;
-      if (exception is ApiException) {
-        _errorMessage = exception.message;
-      } else {
-        _errorMessage = "An unexpected error occurred: ${exception.toString()}";
-      }
-    }
-    notifyListeners();
-  }
-
 }

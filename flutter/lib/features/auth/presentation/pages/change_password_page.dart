@@ -22,6 +22,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   late final AuthViewModel _authViewModel;
   late final FocusNode _codeFocusNode;
+  StreamSubscription<AuthEvent>? _authEventSubscription; // Subscription variable
 
   Timer? _timer;
   int _countdownSeconds = 60;
@@ -32,9 +33,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     super.initState();
     _codeFocusNode = FocusNode();
     _authViewModel = context.read<AuthViewModel>();
-    _authViewModel.addListener(_onAuthStateChanged);
 
-    // Auto-fill mobile from ProfileViewModel
+    // --- FIX: Subscribe to the stream ---
+    _authEventSubscription = _authViewModel.authEvents.listen(_handleAuthEvent);
+    // ---
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final profileViewModel = context.read<ProfileViewModel>();
       if (profileViewModel.userProfile != null) {
@@ -52,7 +55,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     _codeController.dispose();
     _codeFocusNode.dispose();
     _timer?.cancel();
-    _authViewModel.removeListener(_onAuthStateChanged);
+    // --- FIX: Cancel subscription ---
+    _authEventSubscription?.cancel();
+    // ---
     super.dispose();
   }
 
@@ -78,51 +83,46 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     });
   }
 
-  void _onAuthStateChanged() {
+  // --- FIX: Handle events directly from the stream ---
+  void _handleAuthEvent(AuthEvent event) {
     if (!mounted) return;
 
-    if (_authViewModel.event == AuthEvent.resetPasswordSuccess) {
-      _authViewModel.consumeEvent();
+    if (ModalRoute.of(context)?.isCurrent != true) return;
 
-      // --- START: MODIFICATION ---
-      // Show success message
+    if (event == AuthEvent.resetPasswordSuccess) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('密码修改成功！'),
+        content: Text('密码修改成功！请重新登录。'),
         backgroundColor: Colors.green,
       ));
 
-      // Close the page after a short delay, WITHOUT logging out
       Future.delayed(const Duration(seconds: 1), () {
         if (mounted) {
-          // Simply pop the current page to return to SettingsPage
-          Navigator.of(context).pop();
+          _authViewModel.logout();
+          Navigator.of(context).popUntil((route) => route.isFirst);
         }
       });
-      // --- END: MODIFICATION ---
 
-    } else if (_authViewModel.event == AuthEvent.resetPasswordError) {
-      _authViewModel.consumeEvent();
+    } else if (event == AuthEvent.resetPasswordError) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(_authViewModel.errorMessage ?? '修改失败'),
         backgroundColor: Colors.red,
       ));
     }
-    else if (_authViewModel.event == AuthEvent.smsCodeRequestSuccess) {
-      _authViewModel.consumeEvent();
+    else if (event == AuthEvent.smsCodeRequestSuccess) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('短信验证码已发送！'),
         backgroundColor: Colors.green,
       ));
       _startCountdown();
       _codeFocusNode.requestFocus();
-    } else if (_authViewModel.event == AuthEvent.smsCodeRequestError) {
-      _authViewModel.consumeEvent();
+    } else if (event == AuthEvent.smsCodeRequestError) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(_authViewModel.smsErrorMessage ?? '获取验证码失败'),
         backgroundColor: Colors.red,
       ));
     }
   }
+  // ---
 
   Future<void> _onGetVerificationCode() async {
     if (_isCountingDown) return;
@@ -134,7 +134,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     }
 
     final captchaService = CaptchaService(context);
-    // Use 'reset_pwd' type as the interface logic is the same
     await captchaService.requestSmsCodeForMobile(
       _mobileController.text.trim(),
       type: 'reset_pwd',
@@ -158,7 +157,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         builder: (context, authViewModel, profileViewModel, child) {
           final isLoading = authViewModel.state == AuthState.loading;
 
-          // Update mobile text field if profile loaded
           if (profileViewModel.userProfile != null && _mobileController.text.isEmpty) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
@@ -225,14 +223,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String labelText,
-    required String hintText,
-    bool isPassword = false,
-    bool readOnly = false,
-    bool enabled = true,
-  }) {
+  // ... (_buildTextField, _buildCodeField, _buildSuffixIcon remain unchanged)
+  Widget _buildTextField({required TextEditingController controller, required String labelText, required String hintText, bool isPassword = false, bool readOnly = false, bool enabled = true}) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword,

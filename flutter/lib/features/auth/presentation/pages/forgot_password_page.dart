@@ -20,6 +20,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   late final AuthViewModel _viewModel;
   late final FocusNode _codeFocusNode;
+  StreamSubscription<AuthEvent>? _authEventSubscription;
 
   Timer? _timer;
   int _countdownSeconds = 60;
@@ -28,9 +29,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   void initState() {
     super.initState();
-    _viewModel = context.read<AuthViewModel>();
-    _viewModel.addListener(_onAuthStateChanged);
     _codeFocusNode = FocusNode();
+    _viewModel = context.read<AuthViewModel>();
+    _authEventSubscription = _viewModel.authEvents.listen(_handleAuthEvent);
   }
 
   @override
@@ -40,7 +41,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     _codeController.dispose();
     _codeFocusNode.dispose();
     _timer?.cancel();
-    _viewModel.removeListener(_onAuthStateChanged);
+    _authEventSubscription?.cancel();
     super.dispose();
   }
 
@@ -50,7 +51,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _isCountingDown = true;
       _countdownSeconds = 60;
     });
-
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -67,11 +67,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     });
   }
 
-  void _onAuthStateChanged() {
+  void _handleAuthEvent(AuthEvent event) {
     if (!mounted) return;
 
-    if (_viewModel.event == AuthEvent.resetPasswordSuccess) {
-      _viewModel.consumeEvent();
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+
+    if (event == AuthEvent.resetPasswordSuccess) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('密码重置成功！正在返回登录页...'),
         backgroundColor: Colors.green,
@@ -80,27 +81,20 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         if (mounted) Navigator.of(context).pop();
       });
 
-    } else if (_viewModel.event == AuthEvent.resetPasswordError) {
-      _viewModel.consumeEvent();
+    } else if (event == AuthEvent.resetPasswordError) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(_viewModel.errorMessage ?? '重置密码失败'),
         backgroundColor: Colors.red,
       ));
     }
-    else if (_viewModel.event == AuthEvent.smsCodeRequestSuccess) {
-      _viewModel.consumeEvent();
+    else if (event == AuthEvent.smsCodeRequestSuccess) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('短信验证码已发送！'),
         backgroundColor: Colors.green,
       ));
-
-      // --- THIS IS THE FIX ---
       _startCountdown();
       _codeFocusNode.requestFocus();
-      // --- END OF FIX ---
-
-    } else if (_viewModel.event == AuthEvent.smsCodeRequestError) {
-      _viewModel.consumeEvent();
+    } else if (event == AuthEvent.smsCodeRequestError) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(_viewModel.smsErrorMessage ?? '获取验证码失败'),
         backgroundColor: Colors.red,
@@ -226,13 +220,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         filled: true,
         fillColor: Colors.grey.shade100,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        suffixIcon: _buildSuffixIcon(isSendingSms),
+        suffixIcon: _buildSuffixIcon(isSendingSms, viewModel),
       ),
       validator: (value) => (value == null || value.isEmpty) ? '此项不能为空' : null,
     );
   }
 
-  Widget _buildSuffixIcon(bool isSendingSms) {
+  Widget _buildSuffixIcon(bool isSendingSms, AuthViewModel viewModel) {
     if (isSendingSms) {
       return const Padding(
         padding: EdgeInsets.all(14.0),
