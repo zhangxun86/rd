@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_network_kit/flutter_network_kit.dart';
+import '../../../../models/platform_model.dart';
 import '../../data/models/register_request_model.dart';
 import '../../domain/repositories/auth_repository.dart';
 
@@ -241,4 +244,5 @@ class AuthViewModel extends ChangeNotifier {
     }
     notifyListeners();
   }
+
 }

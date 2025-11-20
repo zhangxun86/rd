@@ -239,7 +239,7 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildMenuItem(icon: Icons.feedback_outlined, text: '问题反馈', color: Colors.blue, onTap: () => Navigator.of(context).pushNamed(AppRoutes.feedback)),
             _buildMenuItem(icon: Icons.settings_outlined, text: '更多设置', color: Colors.purple, onTap: () =>Navigator.of(context).pushNamed(AppRoutes.setting)),
             _buildMenuItem(icon: Icons.support_agent_outlined, text: '联系客服', color: Colors.green, onTap: () {}),
-            _buildMenuItem(icon: Icons.info_outline, text: '关于我们', color: Colors.orange, onTap: () {}),
+            _buildMenuItem(icon: Icons.info_outline, text: '关于我们', color: Colors.orange, onTap: () {Navigator.of(context).pushNamed(AppRoutes.about);}),
             _buildMenuItem(icon: Icons.help_outline, text: '使用帮助', color: Colors.cyan, isLast: true, onTap: () {}),
           ],
         ),

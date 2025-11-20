@@ -5,6 +5,7 @@ class UserProfileModel {
   final bool isVip;
   final String vipName;
   final String vipExpDate;
+  final String mobile;
 
   UserProfileModel({
     required this.id,
@@ -13,6 +14,7 @@ class UserProfileModel {
     required this.isVip,
     required this.vipName,
     required this.vipExpDate,
+    required this.mobile,
   });
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) {
@@ -24,6 +26,7 @@ class UserProfileModel {
       isVip: (json['is_vip'] as int) == 1,
       vipName: json['vip_name'] as String,
       vipExpDate: json['vip_exp_date'] as String,
+      mobile: json['mobile'] as String? ?? '',
     );
   }
 }

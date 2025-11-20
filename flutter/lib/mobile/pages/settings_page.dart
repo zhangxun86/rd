@@ -12,9 +12,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../common.dart';
+import '../../common/routes.dart';
 import '../../common/widgets/dialog.dart';
 import '../../common/widgets/login.dart';
 import '../../consts.dart';
+import '../../features/auth/presentation/provider/auth_viewmodel.dart';
 import '../../models/model.dart';
 import '../../models/platform_model.dart';
 import '../widgets/dialog.dart';
@@ -595,23 +597,19 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               SettingsTile(
                 title: Text('修改密碼'),
                 onPressed: (context) {
-                  if (gFFI.userModel.userName.value.isEmpty) {
-                    loginDialog();
-                  } else {
-                    logOutConfirmDialog();
-                  }
+                  Navigator.of(context).pushNamed(AppRoutes.changePassword);
                 },
               ),
               SettingsTile(
                 title: Text('退出登录'),
                 onPressed: (context) {
-                  logOutConfirmDialog();
+                  _showLogoutDialog();
                 },
               ),
               SettingsTile(
                 title: Text('注销账号'),
                 onPressed: (context) {
-                  showDeleteAccountDialog();
+                  _showDeleteAccountDialog();
                 },
               ),
             ],
@@ -848,6 +846,80 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
       ],
     );
   }
+}
+
+void _showLogoutDialog() {
+  gFFI.dialogManager.show((setState, close, context) {
+    submit() async {
+      close();
+
+      // 1. Call AuthViewModel to clear all tokens (Local + FFI)
+      await Provider.of<AuthViewModel>(globalKey.currentContext!, listen: false).logout();
+
+      // 2. Also call RustDesk's internal logout to clear memory state (just in case)
+      await gFFI.userModel.logOut();
+
+      // 3. Navigate to Splash (Root) instead of Login.
+      // This forces the AppShell to re-initialize and show the Login page cleanly.
+      // This fixes the bug where re-login wouldn't jump to HomePage.
+      final navigator = Navigator.of(globalKey.currentContext!);
+      if (navigator.canPop()) {
+        navigator.pushNamedAndRemoveUntil(
+          AppRoutes.splash, // <-- KEY FIX: Go to Splash/Root
+              (route) => false,
+        );
+      }
+    }
+
+    return CustomAlertDialog(
+      content: Text(translate("logout_tip")),
+      actions: [
+        dialogButton(translate("Cancel"), onPressed: close, isOutline: true),
+        dialogButton(translate("OK"), onPressed: submit),
+      ],
+      onSubmit: submit,
+      onCancel: close,
+    );
+  });
+}
+
+// --- NEW: Local Delete Account Dialog ---
+void _showDeleteAccountDialog() {
+  gFFI.dialogManager.show((setState, close, context) {
+    submit() async {
+      close();
+
+      // 1. Call AuthViewModel to delete account and clear tokens
+      await Provider.of<AuthViewModel>(globalKey.currentContext!, listen: false).deleteAccount();
+
+      // 2. Clear RustDesk state
+      await gFFI.userModel.logOut();
+
+      // 3. Navigate to Splash (Root)
+      final navigator = Navigator.of(globalKey.currentContext!);
+      if (navigator.canPop()) {
+        navigator.pushNamedAndRemoveUntil(
+          AppRoutes.splash, // <-- KEY FIX: Go to Splash/Root
+              (route) => false,
+        );
+      }
+    }
+
+    return CustomAlertDialog(
+      title: Text("注销账号"),
+      content: Text("您确定要注销您的账号吗？此操作不可恢复，所有数据将被永久删除。"),
+      actions: [
+        dialogButton("取消", onPressed: close, isOutline: true),
+        dialogButton(
+          "确定注销",
+          onPressed: submit,
+          buttonStyle: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+        ),
+      ],
+      onSubmit: submit,
+      onCancel: close,
+    );
+  });
 }
 
 void showLanguageSettings(OverlayDialogManager dialogManager) async {

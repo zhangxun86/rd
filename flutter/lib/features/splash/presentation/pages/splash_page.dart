@@ -4,11 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../common/routes.dart';
-import '../../../../di_container.dart'; // 需要导入 getIt
-import '../../../../mobile/pages/home_page.dart'; // 导入 RustDesk 的主页
-import '../../../auth/presentation/pages/login_page.dart'; // 导入登录页
-import '../../../auth/presentation/provider/auth_viewmodel.dart'; // 导入 AuthViewModel
-import '../../../vip/domain/repositories/vip_repository.dart'; // 导入 VipRepository
+import '../../../../di_container.dart';
+import '../../../../mobile/pages/home_page.dart';
+import '../../../auth/presentation/pages/login_page.dart';
+import '../../../auth/presentation/provider/auth_viewmodel.dart';
+import '../../../vip/domain/repositories/vip_repository.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -19,9 +19,6 @@ class SplashPage extends StatefulWidget {
 
 class _SplashPageState extends State<SplashPage> {
   static const String _privacyAgreedKey = 'has_agreed_privacy';
-
-  // --- 1. 定义状态变量 ---
-  // 这个变量控制是否显示加载圈。当隐私协议检查完成且登录状态检查完成后，设为 true。
   bool _isInitialized = false;
 
   @override
@@ -74,7 +71,6 @@ class _SplashPageState extends State<SplashPage> {
 
     if (mounted) {
       setState(() {
-        // --- 2. 这里使用正确的变量名 _isInitialized ---
         _isInitialized = true;
       });
     }
@@ -148,7 +144,6 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
-    // --- 3. 使用 _isInitialized 判断是否显示加载圈 ---
     if (!_isInitialized) {
       return const Scaffold(
         body: Center(
@@ -164,7 +159,15 @@ class _SplashPageState extends State<SplashPage> {
         } else {
           return Navigator(
             key: const ValueKey('AuthNavigator'),
-            initialRoute: AppRoutes.login,
+            // --- 核心修复开始 ---
+            // 不使用 initialRoute: AppRoutes.login，因为它会尝试先加载 '/'
+            // 改用 onGenerateInitialRoutes 直接指定第一页是 LoginPage
+            onGenerateInitialRoutes: (navigator, initialRoute) {
+              return [
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+              ];
+            },
+            // --- 核心修复结束 ---
             onGenerateRoute: AppRoutes.onGenerateRoute,
           );
         }

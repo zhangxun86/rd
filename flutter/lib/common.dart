@@ -3412,7 +3412,9 @@ importConfig(List<TextEditingController>? controllers, List<RxString>? errMsgs,
 Future<bool> setServerConfig(
   List<TextEditingController>? controllers,
   List<RxString>? errMsgs,
-  ServerConfig config,
+  ServerConfig config,{
+      bool shouldLogout = false, // <--- 1. 新增可选参数，默认为 true (保持原有行为)
+    }
 ) async {
   String removeEndSlash(String input) {
     if (input.endsWith('/')) {
@@ -3465,7 +3467,7 @@ Future<bool> setServerConfig(
   await bind.mainSetOption(key: 'api-server', value: config.apiServer);
   await bind.mainSetOption(key: 'key', value: config.key);
   final newApiServer = await bind.mainGetApiServer();
-  if (oldApiServer.isNotEmpty &&
+  if (shouldLogout && oldApiServer.isNotEmpty &&
       oldApiServer != newApiServer &&
       gFFI.userModel.isLogin) {
     gFFI.userModel.logOut(apiServer: oldApiServer);

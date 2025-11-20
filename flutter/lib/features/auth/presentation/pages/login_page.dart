@@ -77,6 +77,12 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _onGetVerificationCode(AuthViewModel viewModel) async {
     if (_isCountingDown || viewModel.isSendingSms) return;
 
+    FocusScope.of(context).unfocus();
+    if (_mobileController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先输入手机号码')));
+      return;
+    }
+
     final captchaService = CaptchaService(context);
     final success = await captchaService.requestSmsCodeForMobile(
       _mobileController.text.trim(),
@@ -125,15 +131,12 @@ class _LoginPageState extends State<LoginPage> {
         leading: const BackButton(color: Colors.black),
         foregroundColor: Colors.black,
         actions: [
-          // --- START: MODIFICATION 1 ---
           TextButton(
             onPressed: () {
-              // Navigate to the password login page
               Navigator.of(context).pushReplacementNamed(AppRoutes.passwordLogin);
             },
             child: Text('密码登录', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
           ),
-          // --- END: MODIFICATION 1 ---
           const SizedBox(width: 8),
         ],
       ),
@@ -153,21 +156,38 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 30),
                 _buildAgreementRow(),
                 const SizedBox(height: 30),
+
+                // --- START: Modified Button Style ---
                 ElevatedButton(
                   onPressed: isLoading ? null : () => _onLogin(viewModel),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFF87ADFF),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                    elevation: 0,
+                  style: ButtonStyle(
+                    // 1. 使用 MaterialStateProperty 来根据状态设置背景色
+                    backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
+                      if (states.contains(MaterialState.disabled)) {
+                        return const Color(0xFFB4CDF8); // 不可点击时的浅蓝色
+                      }
+                      // 正常可点击时的深蓝色 (比之前更鲜艳)
+                      return const Color(0xFF2979FF);
+                    }),
+                    // 2. 设置文字颜色
+                    foregroundColor: MaterialStateProperty.all(Colors.white),
+                    // 3. 设置形状
+                    shape: MaterialStateProperty.all(
+                      RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    ),
+                    // 4. 设置内边距
+                    padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
+                    // 5. 去除阴影
+                    elevation: MaterialStateProperty.all(0),
+                    // 6. (可选) 设置点击时的水波纹颜色
+                    overlayColor: MaterialStateProperty.all(Colors.white.withOpacity(0.2)),
                   ),
                   child: isLoading
                       ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                       : const Text('登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
+                // --- END: Modified Button Style ---
 
-                // --- START: MODIFICATION 2 ---
                 const SizedBox(height: 24),
                 Center(
                   child: Text.rich(
@@ -180,10 +200,10 @@ class _LoginPageState extends State<LoginPage> {
                           style: const TextStyle(
                             color: Colors.blueAccent,
                             fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
                           ),
                           recognizer: TapGestureRecognizer()
                             ..onTap = () {
-                              // Navigate to the register page
                               Navigator.of(context).pushReplacementNamed(AppRoutes.register);
                             },
                         ),
@@ -191,8 +211,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-                // --- END: MODIFICATION 2 ---
-
               ],
             ),
           ),

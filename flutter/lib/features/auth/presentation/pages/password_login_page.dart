@@ -14,7 +14,7 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _agreedToTerms = false;
+  bool _agreedToTerms = true; // 默认勾选，保持与验证码登录页一致
 
   late final AuthViewModel _viewModel;
 
@@ -22,6 +22,7 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
   void initState() {
     super.initState();
     _viewModel = context.read<AuthViewModel>();
+    // 注册监听器，这是处理错误提示的关键
     _viewModel.addListener(_onAuthStateChanged);
   }
 
@@ -29,16 +30,22 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
   void dispose() {
     _mobileController.dispose();
     _passwordController.dispose();
+    // 移除监听器
     _viewModel.removeListener(_onAuthStateChanged);
     super.dispose();
   }
 
+  // --- 核心修复：添加状态监听 ---
   void _onAuthStateChanged() {
     if (!mounted) return;
+
+    // 处理登录成功
     if (_viewModel.event == AuthEvent.loginSuccess) {
       _viewModel.consumeEvent();
       Navigator.of(context).pushReplacementNamed(AppRoutes.home);
-    } else if (_viewModel.event == AuthEvent.loginError) {
+    }
+    // 处理登录失败 (接口报错会走到这里)
+    else if (_viewModel.event == AuthEvent.loginError) {
       _viewModel.consumeEvent();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(_viewModel.errorMessage ?? '登录失败'),
@@ -46,6 +53,7 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
       ));
     }
   }
+  // --- 修复结束 ---
 
   void _onLogin() {
     if (!_agreedToTerms) {
@@ -54,6 +62,7 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
     }
     FocusScope.of(context).unfocus();
     if (_formKey.currentState?.validate() ?? false) {
+      // 调用密码登录方法
       context.read<AuthViewModel>().loginWithPassword(
         mobile: _mobileController.text.trim(),
         pwd: _passwordController.text.trim(),
@@ -101,19 +110,30 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
                       const SizedBox(height: 10),
                       _buildAgreementRow(),
                       const SizedBox(height: 30),
+
+                      // --- Button Style Updated to match LoginPage ---
                       ElevatedButton(
                         onPressed: isLoading ? null : _onLogin,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: const Color(0xFF87ADFF),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                          elevation: 0,
+                        style: ButtonStyle(
+                          backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
+                            if (states.contains(MaterialState.disabled)) {
+                              return const Color(0xFFB4CDF8);
+                            }
+                            return const Color(0xFF2979FF);
+                          }),
+                          foregroundColor: MaterialStateProperty.all(Colors.white),
+                          shape: MaterialStateProperty.all(
+                            RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          ),
+                          padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
+                          elevation: MaterialStateProperty.all(0),
+                          overlayColor: MaterialStateProperty.all(Colors.white.withOpacity(0.2)),
                         ),
                         child: isLoading
                             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                             : const Text('登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
+                      // -----------------------------------------------
                     ],
                   ),
                 ),
@@ -129,7 +149,6 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
       alignment: Alignment.centerRight,
       child: TextButton(
         onPressed: () {
-          // Navigate to the new forgot password page
           Navigator.of(context).pushNamed(AppRoutes.forgotPassword);
         },
         child: Text('忘记密码?', style: TextStyle(color: Colors.grey.shade600)),
@@ -137,7 +156,6 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
     );
   }
 
-  // These builder methods are reused
   Widget _buildTextField({required TextEditingController controller, required String labelText, required String hintText, bool isPassword = false, TextInputType? keyboardType}) {
     return TextFormField(
       controller: controller,
@@ -158,6 +176,7 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
       ),
       validator: (value) {
         if (value == null || value.isEmpty) return '此项不能为空';
+        if (isPassword && (value.length < 6 || value.length > 30)) return '密码长度应为6-30位';
         return null;
       },
     );

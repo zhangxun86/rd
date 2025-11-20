@@ -1,17 +1,16 @@
 import 'dart:convert';
 import 'package:flutter_network_kit/flutter_network_kit.dart';
 import 'package:dio/dio.dart';
-import 'package:get/get.dart'; // Required for RxString for setServerConfig
+import 'package:get/get.dart'; // Required for RxString
 import '../../../../common.dart';
 import '../../../../common/hbbs/hbbs.dart'; // Required for ServerConfig
-import '../../../../common/widgets/dialog.dart'; // Required for setServerConfig
-import '../../../../models/user_model.dart';
+import '../../../../common/widgets/setting_widgets.dart'; // Required for setServerConfig
+import '../../../../models/user_model.dart'; // Required for UserModel static methods
 import '../datasources/auth_local_datasource.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../models/auth_response_model.dart';
 import '../models/register_request_model.dart';
 import '../../domain/repositories/auth_repository.dart';
-
 import 'package:flutter_hbb/models/platform_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
@@ -44,7 +43,16 @@ class AuthRepositoryImpl implements AuthRepository {
     if (response.hxTokenInfo != null && response.hxTokenInfo!.configData.isNotEmpty) {
       try {
         final serverConfig = ServerConfig.decode(response.hxTokenInfo!.configData);
-        await setServerConfig(null, [RxString(''), RxString(''), RxString('')], serverConfig);
+
+        // --- FIX: Pass shouldLogout: false ---
+        await setServerConfig(
+          null,
+          [RxString(''), RxString(''), RxString('')],
+          serverConfig,
+          shouldLogout: false, // Prevent auto-logout on config update
+        );
+        // --- END FIX ---
+
       } catch (e) {
         print("Error applying server configuration from login: $e");
       }
@@ -64,16 +72,47 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Result<AuthResponseModel, ApiException>> register(RegisterRequestModel request) async {
     try {
       final response = await _remoteDataSource.register(request);
-      await _saveAuthData(response); // Use the synchronized save method
+      await _saveAuthData(response);
       return Success(response);
     } on DioException catch (e) {
-      if (e.error is ApiException) {
-        return Failure(e.error as ApiException);
-      }
-      return Failure(ApiException(
-        message: 'An unknown Dio error occurred during registration.',
-        requestOptions: e.requestOptions,
-      ));
+      if (e.error is ApiException) return Failure(e.error as ApiException);
+      return Failure(ApiException(message: 'Registration failed.', requestOptions: e.requestOptions));
+    } catch (e) {
+      return Failure(ApiException(message: 'Registration error: $e', requestOptions: RequestOptions(path: 'local_error')));
+    }
+  }
+
+  @override
+  Future<Result<AuthResponseModel, ApiException>> login({
+    required String mobile,
+    required String code,
+  }) async {
+    try {
+      final response = await _remoteDataSource.login(mobile: mobile, code: code);
+      await _saveAuthData(response);
+      return Success(response);
+    } on DioException catch (e) {
+      if (e.error is ApiException) return Failure(e.error as ApiException);
+      return Failure(ApiException(message: 'Login failed.', requestOptions: e.requestOptions));
+    } catch (e) {
+      return Failure(ApiException(message: 'Login error: $e', requestOptions: RequestOptions(path: 'local_error')));
+    }
+  }
+
+  @override
+  Future<Result<AuthResponseModel, ApiException>> loginWithPassword({
+    required String mobile,
+    required String pwd,
+  }) async {
+    try {
+      final response = await _remoteDataSource.loginWithPassword(mobile: mobile, pwd: pwd);
+      await _saveAuthData(response);
+      return Success(response);
+    } on DioException catch (e) {
+      if (e.error is ApiException) return Failure(e.error as ApiException);
+      return Failure(ApiException(message: 'Login failed.', requestOptions: e.requestOptions));
+    } catch (e) {
+      return Failure(ApiException(message: 'Login error: $e', requestOptions: RequestOptions(path: 'local_error')));
     }
   }
 
@@ -84,17 +123,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> logout() async {
-    // 1. Clear our Dart-level storage.
     await _localDataSource.clearAuthData();
-
-    // 2. Clear RustDesk's FFI-level storage.
     await bind.mainSetLocalOption(key: 'access_token', value: '');
     await bind.mainSetLocalOption(key: 'user_info', value: '');
-
-    // 3. (Optional but recommended) Clear the server config if it was set by login.
+    // Pass shouldLogout: true (default) here as we ARE logging out.
     await setServerConfig(null, [RxString(''), RxString(''), RxString('')], ServerConfig());
-
-    print("Custom auth data and FFI storage cleared.");
   }
 
   @override
@@ -124,64 +157,10 @@ class AuthRepositoryImpl implements AuthRepository {
         ));
       }
     } on DioException catch (e) {
-      if (e.error is ApiException) {
-        return Failure(e.error as ApiException);
-      }
-      return Failure(ApiException(
-        message: '获取验证码时发生网络错误',
-        requestOptions: e.requestOptions,
-      ));
+      if (e.error is ApiException) return Failure(e.error as ApiException);
+      return Failure(ApiException(message: '获取验证码网络错误', requestOptions: e.requestOptions));
     } catch (e) {
-      return Failure(ApiException(
-        message: '处理验证参数时出错: ${e.toString()}',
-        requestOptions: RequestOptions(path: 'local_parsing'),
-      ));
-    }
-  }
-
-  @override
-  Future<Result<AuthResponseModel, ApiException>> login({
-    required String mobile,
-    required String code,
-  }) async {
-    try {
-      final response = await _remoteDataSource.login(
-        mobile: mobile,
-        code: code,
-      );
-      await _saveAuthData(response); // Use the synchronized save method
-      return Success(response);
-    } on DioException catch (e) {
-      if (e.error is ApiException) {
-        return Failure(e.error as ApiException);
-      }
-      return Failure(ApiException(
-        message: 'An unknown Dio error occurred during login.',
-        requestOptions: e.requestOptions,
-      ));
-    }
-  }
-
-  @override
-  Future<Result<AuthResponseModel, ApiException>> loginWithPassword({
-    required String mobile,
-    required String pwd,
-  }) async {
-    try {
-      final response = await _remoteDataSource.loginWithPassword(
-        mobile: mobile,
-        pwd: pwd,
-      );
-      await _saveAuthData(response); // Use the synchronized save method
-      return Success(response);
-    } on DioException catch (e) {
-      if (e.error is ApiException) {
-        return Failure(e.error as ApiException);
-      }
-      return Failure(ApiException(
-        message: 'An unknown Dio error occurred during password login.',
-        requestOptions: e.requestOptions,
-      ));
+      return Failure(ApiException(message: '处理验证参数时出错: $e', requestOptions: RequestOptions(path: 'local_parsing')));
     }
   }
 
@@ -199,18 +178,12 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       return const Success(null);
     } on DioException catch (e) {
-      if (e.error is ApiException) {
-        return Failure(e.error as ApiException);
-      }
-      return Failure(ApiException(
-        message: 'An unknown Dio error occurred during password reset.',
-        requestOptions: e.requestOptions,
-      ));
+      if (e.error is ApiException) return Failure(e.error as ApiException);
+      return Failure(ApiException(message: 'Password reset failed.', requestOptions: e.requestOptions));
+    } catch (e) {
+      return Failure(ApiException(message: 'Reset error: $e', requestOptions: RequestOptions(path: 'local_error')));
     }
   }
-
-  // --- Methods below are added to fulfill the AuthRepository interface ---
-  // --- based on our previous discussions for verification. ---
 
   @override
   Future<String?> getTokenFromFFI() async {
@@ -228,13 +201,13 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Result<void, ApiException>> deleteAccount() async {
     try {
       await _remoteDataSource.deleteAccount();
-      // After successfully deleting the account on the server,
-      // clear all local data.
-      await logout(); // We can reuse the logout method for cleanup!
+      await logout();
       return const Success(null);
     } on DioException catch (e) {
       if (e.error is ApiException) return Failure(e.error as ApiException);
       return Failure(ApiException(message: 'Failed to delete account', requestOptions: e.requestOptions));
+    } catch (e) {
+      return Failure(ApiException(message: 'Delete account error: $e', requestOptions: RequestOptions(path: 'local_error')));
     }
   }
 }
