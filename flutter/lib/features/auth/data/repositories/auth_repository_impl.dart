@@ -210,4 +210,25 @@ class AuthRepositoryImpl implements AuthRepository {
       return Failure(ApiException(message: 'Delete account error: $e', requestOptions: RequestOptions(path: 'local_error')));
     }
   }
+
+  @override
+  Future<Result<AuthResponseModel, ApiException>> loginWithOneClick({
+    required String umToken,
+    required String umVerifyId,
+  }) async {
+    try {
+      final response = await _remoteDataSource.loginWithOneClick(
+        umToken: umToken,
+        umVerifyId: umVerifyId,
+      );
+
+      // Reuse the logic to save auth data (token, user_info, config) locally.
+      await _saveAuthData(response);
+
+      return Success(response);
+    } on DioException catch (e) {
+      if (e.error is ApiException) return Failure(e.error as ApiException);
+      return Failure(ApiException(message: 'One-click login failed.', requestOptions: e.requestOptions));
+    }
+  }
 }

@@ -124,4 +124,24 @@ class AuthRemoteDataSource {
       rethrow;
     }
   }
+
+  Future<AuthResponseModel> loginWithOneClick({
+    required String umToken,
+    required String umVerifyId,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/user/um_onekey/login',
+        queryParameters: {
+          'um_token': umToken,
+          'um_verifyId': umVerifyId,
+          // Common parameters will be added by the interceptor.
+        },
+      );
+      // Reuse the AuthResponseModel as the response structure is identical.
+      return AuthResponseModel.fromJson(response.data);
+    } on DioException {
+      rethrow;
+    }
+  }
 }

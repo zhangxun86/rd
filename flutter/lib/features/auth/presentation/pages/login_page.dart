@@ -6,6 +6,8 @@ import '../provider/auth_viewmodel.dart';
 import '../../../../common/routes.dart';
 import 'captcha_page.dart';
 import '../../domain/services/captcha_service.dart';
+// 确保这个路径指向您的 OneClickLoginManager 文件
+import '../../../../core/services/one_click_login_manager.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,21 +16,24 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  // --- 状态变量 ---
   final _mobileController = TextEditingController();
   final _codeController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _agreedToTerms = true;
+  bool _agreedToTerms = false; // 登录页默认勾选
 
   late final AuthViewModel _viewModel;
   late final FocusNode _codeFocusNode;
 
+  // --- 核心修复：使用 StreamSubscription ---
   StreamSubscription<AuthEvent>? _authEventSubscription;
 
+  // 倒计时状态
   Timer? _timer;
   int _countdownSeconds = 60;
   bool _isCountingDown = false;
 
-  // --- UI层防抖变量 ---
+  // UI防抖
   DateTime _lastSnackBarTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
@@ -37,9 +42,11 @@ class _LoginPageState extends State<LoginPage> {
     _codeFocusNode = FocusNode();
     _viewModel = context.read<AuthViewModel>();
 
-    // 确保先取消可能存在的订阅（虽然init里通常没有）
-    _authEventSubscription?.cancel();
+    // --- 核心修复：订阅 ViewModel 的事件流 ---
     _authEventSubscription = _viewModel.authEvents.listen(_handleAuthEvent);
+
+    // 初始化一键登录 SDK
+    //OneClickLoginManager.init();
   }
 
   @override
@@ -48,66 +55,43 @@ class _LoginPageState extends State<LoginPage> {
     _codeController.dispose();
     _codeFocusNode.dispose();
     _timer?.cancel();
-    // 必须取消订阅，否则会造成内存泄漏和重复监听
+
+    // --- 核心修复：取消订阅，防止内存泄漏 ---
     _authEventSubscription?.cancel();
+
     super.dispose();
   }
 
-  void _startCountdown() {
-    if (!mounted || _isCountingDown) return;
-    setState(() {
-      _isCountingDown = true;
-      _countdownSeconds = 60;
-    });
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() {
-        if (_countdownSeconds > 0) {
-          _countdownSeconds--;
-        } else {
-          timer.cancel();
-          _isCountingDown = false;
-        }
-      });
-    });
-  }
-
+  /// 处理来自 ViewModel 的流事件
   void _handleAuthEvent(AuthEvent event) {
     if (!mounted) return;
 
-    // --- 1. 检查页面可见性 ---
-    // 如果当前页面不在栈顶（例如已经跳到别的页面了），不处理事件
-    final isCurrent = ModalRoute.of(context)?.isCurrent ?? false;
-    if (!isCurrent) return;
-
-    // --- 2. UI层物理防抖 ---
-    // 强制限制 SnackBar 的弹出频率。如果距离上次弹出不到 500ms，直接忽略本次事件。
+    // UI层物理防抖 (防止 SnackBar 刷屏)
     final now = DateTime.now();
     if (now.difference(_lastSnackBarTime) < const Duration(milliseconds: 500)) {
       return;
     }
 
-    // 处理登录成功
-    if (event == AuthEvent.loginWithCodeSuccess) {
-      // 记录时间，避免重复
+    // --- 登录成功 (验证码登录 或 一键登录) ---
+    if (event == AuthEvent.loginWithCodeSuccess ||
+        event == AuthEvent.oneClickLoginSuccess) {
       _lastSnackBarTime = now;
+      // 跳转主页
       Navigator.of(context).pushReplacementNamed(AppRoutes.home);
     }
-    // 处理登录失败
-    else if (event == AuthEvent.loginWithCodeError) {
+
+    // --- 登录失败 ---
+    else if (event == AuthEvent.loginWithCodeError ||
+        event == AuthEvent.oneClickLoginError) {
       _lastSnackBarTime = now;
-      // 使用 removeCurrentSnackBar 立即清除旧的，避免堆叠
       ScaffoldMessenger.of(context).removeCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(_viewModel.errorMessage ?? '登录失败'),
         backgroundColor: Colors.red,
-        duration: const Duration(seconds: 2), // 设置较短的持续时间
       ));
     }
-    // 处理验证码发送成功
+
+    // --- 验证码发送成功 ---
     else if (event == AuthEvent.smsCodeRequestSuccess) {
       _lastSnackBarTime = now;
       ScaffoldMessenger.of(context).removeCurrentSnackBar();
@@ -115,10 +99,11 @@ class _LoginPageState extends State<LoginPage> {
         content: Text('短信验证码已发送！'),
         backgroundColor: Colors.green,
       ));
-      _startCountdown();
-      _codeFocusNode.requestFocus();
+      _startCountdown(); // 启动倒计时
+      _codeFocusNode.requestFocus(); // 自动聚焦
     }
-    // 处理验证码发送失败
+
+    // --- 验证码发送失败 ---
     else if (event == AuthEvent.smsCodeRequestError) {
       _lastSnackBarTime = now;
       ScaffoldMessenger.of(context).removeCurrentSnackBar();
@@ -129,8 +114,35 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> _onGetVerificationCode() async {
+  void _startCountdown() {
     if (_isCountingDown) return;
+
+    setState(() {
+      _isCountingDown = true;
+      _countdownSeconds = 60;
+    });
+
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_countdownSeconds > 0) {
+        setState(() {
+          _countdownSeconds--;
+        });
+      } else {
+        timer.cancel();
+        setState(() {
+          _isCountingDown = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _onGetVerificationCode() async {
+    if (_isCountingDown || _viewModel.isSendingSms) return;
 
     FocusScope.of(context).unfocus();
     if (_mobileController.text.trim().isEmpty) {
@@ -138,6 +150,7 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
+    // 弹出验证码页面
     final captchaResult = await Navigator.of(context).push<String?>(
       PageRouteBuilder(
         opaque: false,
@@ -147,10 +160,11 @@ class _LoginPageState extends State<LoginPage> {
     );
 
     if (captchaResult != null && captchaResult.isNotEmpty) {
+      // 调用 ViewModel 请求短信 (ViewModel 会发送事件)
       await _viewModel.requestSmsCode(
         mobile: _mobileController.text.trim(),
         aliCaptchaParam: captchaResult,
-        type: 'login',
+        type: 'login', // 指定类型为登录
       );
     } else {
       if (mounted) {
@@ -169,6 +183,7 @@ class _LoginPageState extends State<LoginPage> {
     }
     FocusScope.of(context).unfocus();
     if (_formKey.currentState?.validate() ?? false) {
+      // 调用验证码登录
       _viewModel.login(
         mobile: _mobileController.text.trim(),
         code: _codeController.text.trim(),
@@ -176,9 +191,30 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // --- 一键登录逻辑 ---
+  void _onOneClickLogin() {
+    if (!_agreedToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先阅读并同意用户协议和隐私政策')));
+      return;
+    }
+
+    OneClickLoginManager.login(
+      onSuccess: (token, verifyId) {
+        // SDK 成功后，调用 ViewModel 进行后端验证
+        _viewModel.loginWithOneClick(umToken: token, umVerifyId: verifyId);
+      },
+      onFailure: (msg) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('一键登录失败: $msg，请使用验证码登录'),
+          backgroundColor: Colors.orange,
+        ));
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 使用 Consumer 监听加载状态，但不处理事件（事件由 Stream 处理）
+    // 使用 Consumer 监听状态 (loading, etc.)
     return Consumer<AuthViewModel>(
         builder: (context, viewModel, child) {
           final isLoading = viewModel.state == AuthState.loading;
@@ -216,27 +252,36 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 30),
                       _buildAgreementRow(),
                       const SizedBox(height: 30),
+
+                      // --- 登录按钮 ---
                       ElevatedButton(
                         onPressed: isLoading ? null : _onLogin,
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
-                            if (states.contains(MaterialState.disabled)) {
-                              return const Color(0xFFB4CDF8);
-                            }
-                            return const Color(0xFF2979FF);
-                          }),
-                          foregroundColor: MaterialStateProperty.all(Colors.white),
-                          shape: MaterialStateProperty.all(
-                            RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                          ),
-                          padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 16)),
-                          elevation: MaterialStateProperty.all(0),
-                          overlayColor: MaterialStateProperty.all(Colors.white.withOpacity(0.2)),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: const Color(0xFF87ADFF),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          elevation: 0,
                         ),
                         child: isLoading
                             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                             : const Text('登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
+
+                      // --- 一键登录按钮 ---
+                      const SizedBox(height: 16),
+                      OutlinedButton(
+                        onPressed: isLoading ? null : _onOneClickLogin,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: const BorderSide(color: Color(0xFF87ADFF)),
+                          foregroundColor: const Color(0xFF87ADFF),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        ),
+                        child: const Text('本机号码一键登录', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+
+                      // --- 去注册跳转 ---
                       const SizedBox(height: 24),
                       Center(
                         child: Text.rich(
@@ -312,35 +357,29 @@ class _LoginPageState extends State<LoginPage> {
         filled: true,
         fillColor: Colors.grey.shade100,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        suffixIcon: _buildSuffixIcon(isSendingSms, viewModel),
+        suffixIcon: isSendingSms
+            ? const Padding(
+          padding: EdgeInsets.all(14.0),
+          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5)),
+        )
+            : (_isCountingDown
+            ? Container(
+          width: 80,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.only(right: 12.0),
+          child: Text(
+            '${_countdownSeconds}s',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+          ),
+        )
+            : TextButton(
+          onPressed: _onGetVerificationCode,
+          child: const Text('获取验证码', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+        )
+        ),
       ),
       validator: (value) => (value == null || value.isEmpty) ? '此项不能为空' : null,
     );
-  }
-
-  Widget _buildSuffixIcon(bool isSendingSms, AuthViewModel viewModel) {
-    if (isSendingSms) {
-      return const Padding(
-        padding: EdgeInsets.all(14.0),
-        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5)),
-      );
-    } else if (_isCountingDown) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Center(
-          widthFactor: 1.0,
-          child: Text(
-            '${_countdownSeconds}s',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14, fontWeight: FontWeight.bold),
-          ),
-        ),
-      );
-    } else {
-      return TextButton(
-        onPressed: _onGetVerificationCode,
-        child: const Text('获取验证码', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
-      );
-    }
   }
 
   Widget _buildAgreementRow() {

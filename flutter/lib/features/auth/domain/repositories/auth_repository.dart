@@ -17,6 +17,11 @@ abstract class AuthRepository {
     required String type,
   });
 
+  Future<Result<AuthResponseModel, ApiException>> loginWithOneClick({
+    required String umToken,
+    required String umVerifyId,
+  });
+
   // --- Methods for verification ---
   Future<String?> getTokenFromFFI();
   Future<String?> getUserInfoFromFFI();

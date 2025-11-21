@@ -21,6 +21,8 @@ enum AuthEvent {
   resetPasswordError,
   deleteAccountSuccess,
   deleteAccountError,
+  oneClickLoginSuccess, // <-- NEW
+  oneClickLoginError,   // <-- NEW
 }
 
 class AuthViewModel extends ChangeNotifier {
@@ -265,4 +267,26 @@ class AuthViewModel extends ChangeNotifier {
       errorEvent: AuthEvent.resetPasswordError,
     );
   }
+
+  Future<void> loginWithOneClick({
+    required String umToken,
+    required String umVerifyId,
+  }) async {
+    _state = AuthState.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    final result = await _authRepository.loginWithOneClick(
+      umToken: umToken,
+      umVerifyId: umVerifyId,
+    );
+
+    // Reuse the helper method for consistent state updates
+    _handleAuthResult(
+      result,
+      successEvent: AuthEvent.oneClickLoginSuccess,
+      errorEvent: AuthEvent.oneClickLoginError,
+    );
+  }
+
 }

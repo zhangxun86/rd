@@ -27,6 +27,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'common.dart';
 import 'consts.dart';
+import 'core/services/one_click_login_manager.dart';
 import 'features/feedback/domain/repositories/feedback_repository.dart';
 import 'features/feedback/presentation/provider/feedback_viewmodel.dart';
 import 'features/profile/domain/repositories/profile_repository.dart';
@@ -59,6 +60,8 @@ Future<void> main(List<String> args) async {
 
   debugPrint("launch args: $args");
   kBootArgs = List.from(args);
+  print("OneClickLoginManager: SDK 初始化=------------===================");
+  OneClickLoginManager.init();
 
   if (!isDesktop) {
     runMobileApp();

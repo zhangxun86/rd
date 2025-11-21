@@ -45,6 +45,12 @@ dependencies:
 
   tobias: ^5.3.1
 
+  # 友盟基础库
+  umeng_common_sdk: ^1.2.7
+  # 友盟认证库 (本地路径依赖，请根据实际存放位置修改)
+  umeng_verify_sdk:
+    path: ./plugins/umeng_verify_sdk
+
   ffi: ^2.1.0
   path_provider: ^2.1.1
   external_path: ^1.0.3
@@ -156,6 +162,8 @@ flutter_icons:
   linux: true
   web:
     generate: true
+
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
