@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hbb/common/app_urls.dart';
 import 'package:package_info_plus/package_info_plus.dart'; // 用于获取版本号
 import '../../../../common/routes.dart'; // 用于跳转问题反馈等
 
@@ -107,28 +108,28 @@ class _AboutPageState extends State<AboutPage> {
           children: [
             _buildMenuItem(title: '用户协议', onTap: () {
               // TODO: 跳转到用户协议 WebView
-              _navigateToWebView(context, '用户协议', 'https://example.com/terms');
+              _navigateToWebView(context, '用户协议', AppUrls.userAgreement);
             }),
             _buildDivider(),
             _buildMenuItem(title: '隐私政策', onTap: () {
               // TODO: 跳转到隐私政策 WebView
-              _navigateToWebView(context, '隐私政策', 'https://example.com/privacy');
+              _navigateToWebView(context, '隐私政策', AppUrls.privacyPolicy);
             }),
             _buildDivider(),
             _buildMenuItem(title: '用户行为规范', onTap: () {
-              // TODO: 跳转行为规范
+              _navigateToWebView(context, '用户行为规范', AppUrls.behaviorRules);
             }),
             _buildDivider(),
             _buildMenuItem(title: '证件信息', isLast: true, onTap: () {
-              // TODO: 跳转证件信息
+              _navigateToWebView(context, '证件信息', AppUrls.licenseInfo);
             }),
             _buildDivider(),
             _buildMenuItem(title: '个人信息收集与使用', onTap: () {
-              // TODO: 跳转行为规范
+              _navigateToWebView(context, '个人信息收集与使用', AppUrls.privacyPolicy);
             }),
             _buildDivider(),
             _buildMenuItem(title: '个人第三方信息共享清单', onTap: () {
-              // TODO: 跳转行为规范
+              _navigateToWebView(context, '个人第三方信息共享清单', AppUrls.privacyPolicy);
             }),
           ],
         ),

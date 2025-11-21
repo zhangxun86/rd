@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../common/app_urls.dart';
 import '../../../../common/routes.dart';
 import '../../../../di_container.dart';
 import '../../../../mobile/pages/home_page.dart';
@@ -101,13 +102,21 @@ class _SplashPageState extends State<SplashPage> {
                     TextSpan(
                       text: '《用户协议》',
                       style: const TextStyle(color: Colors.cyan),
-                      recognizer: TapGestureRecognizer()..onTap = () { /* TODO */ },
+                      recognizer: TapGestureRecognizer()..onTap = () { Navigator.of(context).pushNamed(
+                        AppRoutes.webview,
+                        arguments: {'title': '用户协议', 'url': AppUrls.userAgreement},
+                      );  },
                     ),
                     const TextSpan(text: '和'),
                     TextSpan(
                       text: '《隐私政策》',
                       style: const TextStyle(color: Colors.cyan),
-                      recognizer: TapGestureRecognizer()..onTap = () { /* TODO */ },
+                      recognizer: TapGestureRecognizer()..onTap = () {
+                        Navigator.of(context).pushNamed(
+                          AppRoutes.webview,
+                          arguments: {'title': '隐私政策', 'url': AppUrls.privacyPolicy},
+                        );
+                      },
                     ),
                     const TextSpan(text: '的全部内容。点击“同意“即表示您已阅读并同意全部条款。若选择不同意，将无法使用我们的产品和服务，并退出应用。'),
                   ],

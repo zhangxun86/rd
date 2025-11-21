@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../common/app_urls.dart';
 import '../provider/auth_viewmodel.dart';
 import '../../../../common/routes.dart';
 
@@ -15,7 +16,7 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _agreedToTerms = true;
+  bool _agreedToTerms = false;
 
   late final AuthViewModel _viewModel;
   StreamSubscription<AuthEvent>? _authEventSubscription;
@@ -199,9 +200,19 @@ class _PasswordLoginPageState extends State<PasswordLoginPage> {
               text: '我已阅读并同意 ',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
               children: [
-                TextSpan(text: '《用户协议》', style: const TextStyle(color: Colors.blueAccent), recognizer: TapGestureRecognizer()..onTap = () {}),
+                TextSpan(text: '《用户协议》', style: const TextStyle(color: Colors.blueAccent), recognizer: TapGestureRecognizer()..onTap = () {
+                  Navigator.of(context).pushNamed(
+                    AppRoutes.webview,
+                    arguments: {'title': '用户协议', 'url': AppUrls.userAgreement},
+                  );
+                }),
                 const TextSpan(text: ' 和 '),
-                TextSpan(text: '《隐私政策》', style: const TextStyle(color: Colors.blueAccent), recognizer: TapGestureRecognizer()..onTap = () {}),
+                TextSpan(text: '《隐私政策》', style: const TextStyle(color: Colors.blueAccent), recognizer: TapGestureRecognizer()..onTap = () {
+                  Navigator.of(context).pushNamed(
+                    AppRoutes.webview,
+                    arguments: {'title': '隐私政策', 'url': AppUrls.privacyPolicy},
+                  );
+                }),
               ],
             ),
           ),

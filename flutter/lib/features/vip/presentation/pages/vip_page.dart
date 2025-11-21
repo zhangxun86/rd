@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fluwx/fluwx.dart';
 import 'package:url_launcher/url_launcher.dart'; // Import url_launcher for launching tip URLs
+import '../../../../common/app_urls.dart';
 import '../../../../di_container.dart';
 import '../provider/vip_viewmodel.dart';
 import '../../data/models/vip_info_model.dart';
@@ -423,7 +424,9 @@ class _VipPageState extends State<VipPage> {
                 text: '我已阅读并同意 ',
                 style: const TextStyle(color: Colors.grey, fontSize: 12),
                 children: [
-                  TextSpan(text: '《会员服务协议》', style: const TextStyle(color: Colors.blueAccent), recognizer: TapGestureRecognizer()..onTap = () {}),
+                  TextSpan(text: '《会员服务协议》', style: const TextStyle(color: Colors.blueAccent), recognizer: TapGestureRecognizer()..onTap = () {
+                    _navigateToWebView(context, '会员服务协议', AppUrls.vipServiceAgreement);
+                  }),
                 ],
               ),
             ),
@@ -444,6 +447,13 @@ class _VipPageState extends State<VipPage> {
               : const Text('立即支付', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ),
       ]),
+    );
+  }
+
+  void _navigateToWebView(BuildContext context, String title, String url) {
+    Navigator.of(context).pushNamed(
+      AppRoutes.webview,
+      arguments: {'title': title, 'url': url},
     );
   }
 }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../common/app_urls.dart';
 import '../../../../common/routes.dart';
 import '../../../../mobile/pages/home_page.dart';
 import '../../../../common.dart';
 import '../provider/profile_viewmodel.dart';
+// --- 新增引入：用于获取 AuthRepository ---
+import '../../../auth/domain/repositories/auth_repository.dart';
 
 class ProfilePage extends StatefulWidget implements PageShape {
   const ProfilePage({super.key});
@@ -236,11 +239,60 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(16),
         child: Column(
           children: [
-            _buildMenuItem(icon: Icons.feedback_outlined, text: '问题反馈', color: Colors.blue, onTap: () => Navigator.of(context).pushNamed(AppRoutes.feedback)),
-            _buildMenuItem(icon: Icons.settings_outlined, text: '更多设置', color: Colors.purple, onTap: () =>Navigator.of(context).pushNamed(AppRoutes.setting)),
-            _buildMenuItem(icon: Icons.support_agent_outlined, text: '联系客服', color: Colors.green, onTap: () {}),
-            _buildMenuItem(icon: Icons.info_outline, text: '关于我们', color: Colors.orange, onTap: () {Navigator.of(context).pushNamed(AppRoutes.about);}),
-            _buildMenuItem(icon: Icons.help_outline, text: '使用帮助', color: Colors.cyan, isLast: true, onTap: () {}),
+            _buildMenuItem(
+                icon: Icons.feedback_outlined,
+                text: '问题反馈',
+                color: Colors.blue,
+                onTap: () => Navigator.of(context).pushNamed(AppRoutes.feedback)
+            ),
+            _buildMenuItem(
+                icon: Icons.settings_outlined,
+                text: '更多设置',
+                color: Colors.purple,
+                onTap: () => Navigator.of(context).pushNamed(AppRoutes.setting)
+            ),
+            _buildMenuItem(
+              icon: Icons.support_agent_outlined,
+              text: '联系客服',
+              color: Colors.green,
+              onTap: () async {
+                // 1. 异步获取 Token
+                final token = await context.read<AuthRepository>().getToken();
+
+                // 2. 构建带参数的 URL
+                final Uri originalUri = Uri.parse(AppUrls.service);
+                final Uri newUri = originalUri.replace(
+                  queryParameters: {
+                    ...originalUri.queryParameters,
+                    'ctoken': token ?? '',
+                  },
+                );
+
+                // 3. 检查挂载状态并跳转
+                if (context.mounted) {
+                  print('service=== '+newUri.toString());
+                  Navigator.of(context).pushNamed(
+                    AppRoutes.webview,
+                    arguments: {'title': '联系客服', 'url': newUri.toString()},
+                  );
+                }
+              },
+            ),
+            _buildMenuItem(
+                icon: Icons.info_outline,
+                text: '关于我们',
+                color: Colors.orange,
+                onTap: () {
+                  Navigator.of(context).pushNamed(AppRoutes.about);
+                }
+            ),
+            _buildMenuItem(
+                icon: Icons.help_outline,
+                text: '使用帮助',
+                color: Colors.cyan,
+                isLast: true,
+                onTap: () {}
+            ),
           ],
         ),
       ),
