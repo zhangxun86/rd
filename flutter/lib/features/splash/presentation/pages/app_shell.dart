@@ -1,16 +1,18 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_hbb/common/app_urls.dart';
+import 'package:flutter_network_kit/flutter_network_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../common/routes.dart';
 import '../../../auth/presentation/provider/auth_viewmodel.dart';
 import '../../../../mobile/pages/home_page.dart';
 import '../../../auth/presentation/pages/password_login_page.dart';
-
-import '../../../../di_container.dart';
+import '../../../../di_container.dart'; // For getIt
 import '../../../vip/domain/repositories/vip_repository.dart';
+// 假设 AppUrls 在这个位置，如果没有请根据您项目实际情况修改导入路径
+import 'package:flutter_hbb/common/app_urls.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -25,7 +27,10 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    _initializeApp();
+    // Start the initialization process as soon as the widget is created.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeApp();
+    });
   }
 
   Future<void> _initializeApp() async {
@@ -36,22 +41,20 @@ class _AppShellState extends State<AppShell> {
 
     if (!hasAgreed) {
       print("🔍 [AppShell] 用户尚未同意隐私协议，显示弹窗");
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final bool? agreed = await _showPrivacyDialog();
-        if (agreed == true) {
-          await prefs.setBool('has_agreed_privacy', true);
-          await _completeInitialization();
-        } else {
-          SystemNavigator.pop();
-        }
-      });
+      final bool? agreed = await _showPrivacyDialog();
+      if (agreed == true) {
+        await prefs.setBool('has_agreed_privacy', true);
+        await _checkLoginAndConfig();
+      } else {
+        SystemNavigator.pop();
+      }
     } else {
       print("🔍 [AppShell] 用户已同意隐私协议");
-      await _completeInitialization();
+      await _checkLoginAndConfig();
     }
   }
 
-  Future<void> _completeInitialization() async {
+  Future<void> _checkLoginAndConfig() async {
     if (!mounted) return;
 
     print("🔍 [AppShell] 正在检查登录状态...");
@@ -71,6 +74,30 @@ class _AppShellState extends State<AppShell> {
         }
       } catch (e) {
         print("❌ [AppShell] 服务器配置更新失败: $e");
+
+        // --- HANDLE 8001 TOKEN EXPIRATION ---
+        ApiException? apiError;
+        if (e is ApiException) {
+          apiError = e;
+        } else if (e is DioException && e.error is ApiException) {
+          apiError = e.error as ApiException;
+        }
+
+        if (apiError != null && apiError.code == 8001) {
+          print("⚠️ [AppShell] Token expired (8001) during init. Logging out...");
+          // Log out, which will update isLoggedIn to false.
+          await authViewModel.logout();
+
+          // We stop here. The Consumer below will see isLoggedIn=false and show the Login page.
+          // We still set _privacyCheckCompleted = true to remove the loading screen.
+          if (mounted) {
+            setState(() {
+              _privacyCheckCompleted = true;
+            });
+          }
+          return;
+        }
+        // --- END HANDLE 8001 ---
       }
     } else {
       print("⚠️ [AppShell] 用户未登录，跳过配置更新");
@@ -84,21 +111,18 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  /// 显示隐私协议弹窗 (根据图片样式重写)
   Future<bool?> _showPrivacyDialog() {
     return showDialog<bool>(
       context: context,
-      barrierDismissible: false, // 用户必须做出选择
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.white, // 确保背景是纯白
-          surfaceTintColor: Colors.white, // 去除 Material 3 的默认底色
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // 圆角弹窗
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           titlePadding: const EdgeInsets.only(top: 24, bottom: 10),
           contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-          actionsPadding: const EdgeInsets.all(24), // 按钮区域的内边距
-
-          // 1. 标题
+          actionsPadding: const EdgeInsets.all(24),
           title: const Text(
             '服务协议和隐私政策',
             textAlign: TextAlign.center,
@@ -108,21 +132,19 @@ class _AppShellState extends State<AppShell> {
                 color: Colors.black87
             ),
           ),
-
-          // 2. 内容文本
           content: SingleChildScrollView(
             child: Text.rich(
               TextSpan(
                 style: const TextStyle(
-                    color: Color(0xFF333333), // 深灰色字体
+                    color: Color(0xFF333333),
                     fontSize: 14,
-                    height: 1.6 // 增加行高，提升可读性
+                    height: 1.6
                 ),
                 children: [
                   const TextSpan(text: '感谢您对本公司的支持!本公司非常重视您的个人信息和隐私保护，为了更好的保障您的个人权益,请在使用我们的产品前,请务必审慎阅读'),
                   TextSpan(
                     text: '《用户协议》',
-                    style: const TextStyle(color: Color(0xFF3B7CFF), fontWeight: FontWeight.w500), // 蓝色链接
+                    style: const TextStyle(color: Color(0xFF3B7CFF), fontWeight: FontWeight.w500),
                     recognizer: TapGestureRecognizer()..onTap = () {
                       Navigator.of(context).pushNamed(
                         AppRoutes.webview,
@@ -133,7 +155,7 @@ class _AppShellState extends State<AppShell> {
                   const TextSpan(text: ' 和 '),
                   TextSpan(
                     text: '《隐私政策》',
-                    style: const TextStyle(color: Color(0xFF3B7CFF), fontWeight: FontWeight.w500), // 蓝色链接
+                    style: const TextStyle(color: Color(0xFF3B7CFF), fontWeight: FontWeight.w500),
                     recognizer: TapGestureRecognizer()..onTap = () {
                       Navigator.of(context).pushNamed(
                         AppRoutes.webview,
@@ -146,48 +168,37 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
           ),
-
-          // 3. 底部按钮区域
           actions: [
             Row(
               children: [
-                // 左侧按钮：我在想想
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
                     style: TextButton.styleFrom(
-                      backgroundColor: const Color(0xFFF0F0F0), // 浅灰色背景
-                      foregroundColor: const Color(0xFF666666), // 深灰色文字
+                      backgroundColor: const Color(0xFFF0F0F0),
+                      foregroundColor: const Color(0xFF666666),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25), // 胶囊形状
+                        borderRadius: BorderRadius.circular(25),
                       ),
                     ),
-                    child: const Text(
-                      '我再想想',
-                      style: TextStyle(fontSize: 15),
-                    ),
+                    child: const Text('我再想想', style: TextStyle(fontSize: 15)),
                   ),
                 ),
-                const SizedBox(width: 16), // 两个按钮之间的间距
-
-                // 右侧按钮：同意并继续
+                const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B7CFF), // 蓝色背景
-                      foregroundColor: Colors.white, // 白色文字
-                      elevation: 0, // 去除阴影
+                      backgroundColor: const Color(0xFF3B7CFF),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25), // 胶囊形状
+                        borderRadius: BorderRadius.circular(25),
                       ),
                     ),
-                    child: const Text(
-                      '同意并继续',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
+                    child: const Text('同意并继续', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -200,6 +211,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Show loading/splash screen while initializing
     if (!_privacyCheckCompleted) {
       return Scaffold(
         body: Container(
@@ -208,30 +220,24 @@ class _AppShellState extends State<AppShell> {
           decoration: const BoxDecoration(
             color: Colors.white,
             image: DecorationImage(
-              // 确保 assets/images/vip_bg.png 在 pubspec.yaml 中已定义
               image: AssetImage('assets/images/splash_bg.png'),
               fit: BoxFit.cover,
             ),
           ),
           child: SafeArea(
-            // 使用 SafeArea 确保底部内容不被系统导航条遮挡
             child: Column(
               children: [
-                // 使用 Spacer 占据上方空间，将内容推到底部
                 const Spacer(),
-
-                // --- 底部内容区域 ---
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 60.0), // 距离底部的一些间距
+                  padding: const EdgeInsets.only(bottom: 60.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // App 图标
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(18), // 稍微减小圆角
+                        borderRadius: BorderRadius.circular(18),
                         child: Image.asset(
                           'assets/images/logo.png',
-                          width: 80, // 稍微调小尺寸适应底部布局
+                          width: 80,
                           height: 80,
                           errorBuilder: (context, error, stackTrace) => const Icon(
                               Icons.app_shortcut,
@@ -240,9 +246,13 @@ class _AppShellState extends State<AppShell> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 24),
-
+                      // Optional: Add a small loading indicator below the logo
+                      const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF3B7CFF))
+                      ),
                     ],
                   ),
                 ),
@@ -253,6 +263,7 @@ class _AppShellState extends State<AppShell> {
       );
     }
 
+    // 2. Initialization complete, route based on login status
     return Consumer<AuthViewModel>(
       builder: (context, authViewModel, child) {
         if (authViewModel.isLoggedIn) {

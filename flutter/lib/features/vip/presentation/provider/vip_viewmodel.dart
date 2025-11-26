@@ -4,10 +4,9 @@ import '../../data/models/vip_info_model.dart';
 import '../../data/models/wechat_pay_info_model.dart';
 import '../../domain/repositories/vip_repository.dart';
 import '../../domain/services/payment_service.dart';
+import '../../../../core/utils/safe_request.dart'; // 1. 导入 SafeRequest
 
 enum PaymentMethod { none, wechat, alipay }
-// The enum below was simplified in my previous response, I will revert to your original one.
-// enum VipState { initial, loading, loaded, error }
 enum VipEvent { none, purchaseInitiated, purchaseSuccess, purchaseError }
 
 class VipViewModel extends ChangeNotifier {
@@ -16,7 +15,7 @@ class VipViewModel extends ChangeNotifier {
 
   VipViewModel(this._vipRepository);
 
-  // --- Using your original state variables ---
+  // --- State variables ---
   /// true only when fetching the VIP package list.
   bool _isLoadingList = false;
   bool get isLoadingList => _isLoadingList;
@@ -54,7 +53,6 @@ class VipViewModel extends ChangeNotifier {
   VipEvent _event = VipEvent.none;
   VipEvent get event => _event;
 
-  // --- START: MODIFICATION ---
   /// A new getter to find and return the full `PriceListItemModel`
   /// for the currently selected package. Returns null if none is selected.
   PriceListItemModel? get selectedPackage {
@@ -70,7 +68,6 @@ class VipViewModel extends ChangeNotifier {
       return null;
     }
   }
-  // --- END: MODIFICATION ---
 
   void consumeEvent() {
     _event = VipEvent.none;
@@ -83,17 +80,23 @@ class VipViewModel extends ChangeNotifier {
     _selectedPackageId = null;
     notifyListeners();
 
-    final result = await _vipRepository.getVipList(type);
+    // --- MODIFICATION: Use SafeRequest ---
+    // SafeRequest handles try-catch and 8001 redirect automatically.
+    // It returns null on failure.
+    final vipInfo = await SafeRequest.run(_vipRepository.getVipList(type));
+
     _isLoadingList = false;
 
-    if (result is Success<VipInfoModel, ApiException>) {
-      _priceList = result.value.priceList;
+    if (vipInfo != null) {
+      _priceList = vipInfo.priceList;
       _listErrorMessage = null;
-    } else if (result is Failure<VipInfoModel, ApiException>) {
-      final exception = result.exception;
-      _listErrorMessage = exception.message;
+    } else {
       _priceList = [];
+      // General error message, specific error toast is handled by SafeRequest
+      _listErrorMessage = "加载失败";
     }
+    // --- END MODIFICATION ---
+
     notifyListeners();
   }
 
@@ -131,18 +134,19 @@ class VipViewModel extends ChangeNotifier {
         return;
     }
 
-    final result = await _vipRepository.buyVip(
+    // --- MODIFICATION: Use SafeRequest ---
+    // Automatically handles 8001 and other API errors.
+    final orderData = await SafeRequest.run(_vipRepository.buyVip(
       packageId: _selectedPackageId!,
       payType: payType,
-    );
+    ));
 
-    if (result is Success<dynamic, ApiException>) {
-      final dynamic orderData = result.value;
+    if (orderData != null) {
+      // If we get here, the API call was successful (Success).
       try {
         if (_selectedPaymentMethod == PaymentMethod.alipay && orderData is String) {
           final paymentResult = await _paymentService.payWithAlipay(orderData);
           if (paymentResult['resultStatus']?.toString() == '9000') {
-            // Wait for the config to be updated before showing success
             await handlePurchaseSuccess();
           } else {
             handlePurchaseFailure(paymentResult['memo']?.toString() ?? "支付失败或已取消");
@@ -159,12 +163,14 @@ class VipViewModel extends ChangeNotifier {
       } catch (e) {
         handlePurchaseFailure(e.toString());
       }
-    } else if (result is Failure<dynamic, ApiException>) {
-      // The type needs to be specified for the compiler to know about `exception`.
-      final failure = result;
-      // Use the helper to handle failure
-      handlePurchaseFailure(failure.exception.message);
+    } else {
+      // Failure (Network error or 8001).
+      // SafeRequest has already shown a toast or redirected.
+      // We just need to reset the loading state.
+      _isPurchasing = false;
+      _event = VipEvent.purchaseError;
     }
+    // --- END MODIFICATION ---
 
     // Only reset purchasing state if it's not a WeChat payment (which waits for a callback)
     if (_selectedPaymentMethod != PaymentMethod.wechat) {
@@ -173,12 +179,13 @@ class VipViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- MODIFICATION: Updated to async and added server config fetch ---
+  // --- MODIFICATION: Updated to async and use SafeRequest ---
   /// Called when payment is successful (either from Alipay sync result or WeChat async callback).
   Future<void> handlePurchaseSuccess() async {
     // 1. Fetch and apply latest server config immediately after purchase.
-    // This ensures the user gets the updated relay/id server info associated with their VIP status.
-    await _vipRepository.fetchAndApplyServerConfig();
+    // Use SafeRequest here too, so if the token expired during payment (rare but possible),
+    // it handles it gracefully instead of crashing.
+    await SafeRequest.run(_vipRepository.fetchAndApplyServerConfig());
 
     // 2. Update state to success.
     _isPurchasing = false;

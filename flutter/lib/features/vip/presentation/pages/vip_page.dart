@@ -28,7 +28,13 @@ class _VipPageState extends State<VipPage> {
     _viewModel.addListener(_onVipStateChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _viewModel.fetchVipList(1);
+      // 获取路由参数
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      // 默认为 1 (普通会员)，如果参数指定了 2 (全球会员)，则使用 2
+      final initialType = args?['initialType'] as int? ?? 1;
+
+      // 加载对应类型的列表
+      _viewModel.fetchVipList(initialType);
     });
 
     _paymentSubscription = fluwx.addSubscriber((response) {

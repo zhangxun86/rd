@@ -675,8 +675,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "v1.2.6"
-      resolved-ref: "56f4ca0d0d14c86847e6bbd8d0db0e907492572d"
+      ref: "v1.2.1"
+      resolved-ref: "16efcbb84842a732a163bc754aa992150f01da3c"
       url: "https://github.com/zhangxun86/flutter_network_kit.git"
     source: git
     version: "1.0.3"

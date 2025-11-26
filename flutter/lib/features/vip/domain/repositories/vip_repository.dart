@@ -12,5 +12,5 @@ abstract class VipRepository {
     required int payType,
   });
 
-  Future<void> fetchAndApplyServerConfig();
+  Future<Result<void, ApiException>> fetchAndApplyServerConfig();
 }

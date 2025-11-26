@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:fluwx/fluwx.dart';
 // Import your custom services and interceptors
 import 'common/interceptors/alice_interceptor.dart';
+import 'common/interceptors/token_expiration_interceptor.dart';
 import 'features/feedback/data/datasources/feedback_remote_datasource.dart';
 import 'features/feedback/data/repositories/feedback_repository_impl.dart';
 import 'features/feedback/domain/repositories/feedback_repository.dart';
@@ -46,6 +47,7 @@ Future<void> initDI() async {
 
   // Create instances of all custom interceptors your app needs.
   final commonParamsInterceptor = AppCommonParamsInterceptor();
+  final tokenExpirationInterceptor = TokenExpirationInterceptor();
 
   // Example: Setting up Alice for debugging
   final alice = Alice();
@@ -58,7 +60,8 @@ Future<void> initDI() async {
   await FlutterNetworkKit.initialize(
     extraInterceptors: [
       commonParamsInterceptor,
-      aliceInterceptor, // Add your debug interceptor here
+      tokenExpirationInterceptor,
+      //aliceInterceptor,
     ],
   );
 

@@ -37,7 +37,7 @@ dependencies:
   flutter_network_kit:
     git:
       url: https://github.com/zhangxun86/flutter_network_kit.git
-      ref: v1.2.6 # I've updated this to the last known good tag we created. Please use your latest tag.
+      ref: v1.2.1 # I've updated this to the last known good tag we created. Please use your latest tag.
 
   webview_flutter: ^4.7.0
 

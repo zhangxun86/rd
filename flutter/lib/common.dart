@@ -30,6 +30,8 @@ import 'package:window_size/window_size.dart' as window_size;
 import '../consts.dart';
 import 'common/routes.dart';
 import 'common/widgets/overlay.dart';
+import 'common/widgets/vip_notice_dialog.dart';
+import 'core/utils/safe_request.dart';
 import 'di_container.dart';
 import 'features/profile/data/models/connection_data_model.dart';
 import 'features/profile/domain/repositories/profile_repository.dart';
@@ -2431,57 +2433,89 @@ connectMainDesktop(String id,
 /// If [isViewCamera], starts a session only for view camera.
 /// If [isTcpTunneling], starts a session only for tcp tunneling.
 /// If [isRDP], starts a session only for rdp.
+/// Connect to a peer with [id].
+/// If [isFileTransfer], starts a session only for file transfer.
+/// If [isViewCamera], starts a session only for view camera.
+/// If [isTcpTunneling], starts a session only for tcp tunneling.
+/// If [isRDP], starts a session only for rdp.
 connect(BuildContext context, String id,
     {bool isFileTransfer = false,
-    bool isViewCamera = false,
-    bool isTerminal = false,
-    bool isTcpTunneling = false,
-    bool isRDP = false,
-    bool forceRelay = false,
-    String? password,
-    String? connToken,
-    bool? isSharedPassword}) async {
+      bool isViewCamera = false,
+      bool isTerminal = false,
+      bool isTcpTunneling = false,
+      bool isRDP = false,
+      bool forceRelay = false,
+      String? password,
+      String? connToken,
+      bool? isSharedPassword}) async {
   if (id == '') return;
 
   // --- START: MODIFICATION - Pre-connection check ---
   final profileRepo = getIt<ProfileRepository>();
+  final loading = gFFI.dialogManager.showLoading('正在检查连接权限...');
 
-  final loading = gFFI.dialogManager.showLoading('正在检查连接时长...');
-
-  final result = await profileRepo.getConnectionData();
+  // 1. Use SafeRequest to handle the API call safely.
+  // It handles try-catch, 8001 logout redirect, and basic error logging.
+  // Returns null on failure.
+  final data = await SafeRequest.run(profileRepo.getConnectionData());
 
   gFFI.dialogManager.dismissByTag(loading);
 
-  // Use pattern matching or if/else to safely handle the Result type
-  if (result is Failure<ConnectionDataModel, ApiException>) {
-    // Now that we know it's a Failure, we can safely access `exception`.
-    final exception = result.exception;
-    gFFI.dialogManager.show((setState, close, context) => CustomAlertDialog(
-      title: Text("错误"),
-      content: Text(exception.message), // Access message safely
-      actions: [dialogButton("OK", onPressed: close)],
-    ));
-    return; // Stop the connection process
+  // 2. If data is null, it means the request failed (e.g., network error or 8001).
+  // In either case, we should stop the connection process.
+  // If it was 8001, the interceptor has already triggered the logout flow.
+  if (data == null) {
+    return;
   }
 
-  // If it's not a Failure, it must be a Success.
-  // We can now safely access the `value`.
-  final remainingTime = (result as Success<ConnectionDataModel, ApiException>).value.remainingTime;
+  // 3. Data is valid, perform VIP/Time check logic.
+  final remainingTime = data.remainingTime;
 
-  if (remainingTime <= 0) {
-    gFFI.dialogManager.show((setState, close, context) => CustomAlertDialog(
-      title: Text("连接时长不足"),
-      content: Text("您的远程连接时长已用完，请充值后再试。"),
-      actions: [
-        dialogButton("取消", onPressed: close, isOutline: true),
-        dialogButton("前往充值", onPressed: () {
-          close();
-          Navigator.of(context).pushNamed(AppRoutes.vip);
-        }),
-      ],
-    ));
-    return; // Stop the connection process
+  // 检查逻辑
+  if (remainingTime <= 1000000) { // Assuming 1000000 is your threshold logic from previous code
+    String title = "开通会员"; // 默认标题
+    String message = "";
+    int targetVipType = 1;
+
+    if (data.needOpenGlobalVip) {
+      title = "升级会员";
+      message = "当前服务不支持全球远控功能，升级[全球会员]畅享远控全球";
+      targetVipType = 2;
+    } else if (data.vipType == 0) {
+      message = "您还不是会员哦，开通会员立即开始远程控制";
+      targetVipType = 1;
+    } else {
+      title = "会员过期";
+      message = "您的远程连接时长已用完，请充值后再试。";
+      targetVipType = 1;
+    }
+
+    // 使用 Flutter 原生的 showDialog 来显示自定义 UI
+    showDialog(
+      context: context,
+      barrierDismissible: false, // 禁止点击背景关闭
+      builder: (BuildContext context) {
+        return VipNoticeDialog(
+          title: title,
+          message: message,
+          onCancel: () {
+            Navigator.of(context).pop(); // 关闭弹窗
+          },
+          onConfirm: () {
+            Navigator.of(context).pop(); // 先关闭弹窗
+            // 跳转 VIP 页面
+            Navigator.of(context).pushNamed(
+                AppRoutes.vip,
+                arguments: {'initialType': targetVipType}
+            );
+          },
+        );
+      },
+    );
+
+    return; // 阻止连接
   }
+  // --- END MODIFICATION ---
 
   if (!isDesktop || desktopType == DesktopType.main) {
     try {
@@ -2500,7 +2534,7 @@ connect(BuildContext context, String id,
   id = await bind.mainHandleRelayId(id: id);
   forceRelay = id != oldId || forceRelay;
   assert(!(isFileTransfer && isTcpTunneling && isRDP),
-      "more than one connect type");
+  "more than one connect type");
 
   if (isDesktop) {
     if (desktopType == DesktopType.main) {
@@ -2568,12 +2602,12 @@ connect(BuildContext context, String id,
           MaterialPageRoute(
             builder: (BuildContext context) =>
                 desktop_view_camera.ViewCameraPage(
-              key: ValueKey(id),
-              id: id,
-              toolbarState: ToolbarState(),
-              password: password,
-              isSharedPassword: isSharedPassword,
-            ),
+                  key: ValueKey(id),
+                  id: id,
+                  toolbarState: ToolbarState(),
+                  password: password,
+                  isSharedPassword: isSharedPassword,
+                ),
           ),
         );
       } else {

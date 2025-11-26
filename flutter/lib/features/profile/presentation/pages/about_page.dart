@@ -76,7 +76,7 @@ class _AboutPageState extends State<AboutPage> {
               image: const DecorationImage(
                 // 这里使用项目 assets 中的 logo，通常与 App 图标一致
                 // 如果您的 logo 路径不同，请修改这里，例如 'assets/icon.png'
-                image: AssetImage('assets/logo.png'),
+                image: AssetImage('assets/images/logo.png'),
                 fit: BoxFit.cover,
               ),
             ),
