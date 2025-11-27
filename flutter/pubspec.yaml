@@ -27,6 +27,9 @@ dependencies:
     sdk: flutter
 
 
+  # --- 核心修复 1: 显式添加此库以修复 Java bigLargeIcon 报错 ---
+  flutter_local_notifications: ^17.0.0
+
   fluwx: ^5.7.5
 
   flutter_localizations:
@@ -40,8 +43,6 @@ dependencies:
       ref: v1.2.1 # I've updated this to the last known good tag we created. Please use your latest tag.
 
   webview_flutter: ^4.7.0
-
-  alice: ^0.4.1
 
   tobias: ^5.3.1
 
@@ -130,7 +131,7 @@ dependencies:
   pull_down_button: ^0.9.3
   device_info_plus: ^9.1.0
   qr_flutter: ^4.1.0
-  extended_text: 13.0.0
+  extended_text: 14.0.0
   xterm: 4.0.0
   sqflite: 2.2.0
   google_fonts: ^6.2.1

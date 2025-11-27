@@ -3,7 +3,6 @@ import 'package:flutter_network_kit/flutter_network_kit.dart';
 import 'package:get_it/get_it.dart';
 import 'package:fluwx/fluwx.dart';
 // Import your custom services and interceptors
-import 'common/interceptors/alice_interceptor.dart';
 import 'common/interceptors/token_expiration_interceptor.dart';
 import 'features/feedback/data/datasources/feedback_remote_datasource.dart';
 import 'features/feedback/data/repositories/feedback_repository_impl.dart';
@@ -24,7 +23,6 @@ import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 
 // You can still import and use Alice or other debug tools here
-import 'package:alice/alice.dart';
 
 /// Global service locator instance.
 final getIt = GetIt.instance;
@@ -50,8 +48,6 @@ Future<void> initDI() async {
   final tokenExpirationInterceptor = TokenExpirationInterceptor();
 
   // Example: Setting up Alice for debugging
-  final alice = Alice();
-  final aliceInterceptor = AliceDioInterceptor(alice);
 
   // --- 3. Framework Initialization with Injection ---
 
