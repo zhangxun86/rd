@@ -9,26 +9,32 @@ class AppUrls {
   // --- 协议与政策 ---
 
   // 用户协议
-  static const String userAgreement = '$_baseUrl/html_article/61/281.html';
+  static const String userAgreement = 'https://appapi.zly0808.cn/html_article/105/293.html';
 
   // 隐私政策
-  static const String privacyPolicy = '$_baseUrl/html_article/61/283.html';
+  static const String privacyPolicy = 'https://appapi.zly0808.cn/html_article/105/295.html';
 
   // --- 其他文档 ---
 
   // 用户行为规范
-  static const String behaviorRules = '$_baseUrl/html_article/61/285.html';
+  static const String behaviorRules = 'https://appapi.zly0808.cn/html_article/105/297.html';
 
   // 证件信息
-  static const String licenseInfo = '$_baseUrl/html_article/61/284.html';
+  static const String licenseInfo = 'https://appapi.zly0808.cn/html_article/105/296.html';
 
   // 会员服务协议 (VIP页面用到)
-  static const String vipServiceAgreement = '$_baseUrl/html_article/61/286.html';
+  static const String vipServiceAgreement = 'https://appapi.zly0808.cn/html_article/105/298.html';
 
   // 帮助中心 (如果有)
   static const String helpCenter = '$_baseUrl/help';
 
   static const String service = 'https://p-api.zzhh0088.com/gochat?ctype=13';
+
+  //个人信息收集与使用清单
+  static const String messageUse = 'https://appapi.zly0808.cn/html_article/105/301.html';
+
+  //个人第三方信息共享清单
+  static const String messageShare = 'https://appapi.zly0808.cn/html_article/105/300.html';
 
 
 }

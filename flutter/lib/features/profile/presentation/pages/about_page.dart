@@ -125,11 +125,11 @@ class _AboutPageState extends State<AboutPage> {
             }),
             _buildDivider(),
             _buildMenuItem(title: '个人信息收集与使用', onTap: () {
-              _navigateToWebView(context, '个人信息收集与使用', AppUrls.privacyPolicy);
+              _navigateToWebView(context, '个人信息收集与使用', AppUrls.messageUse);
             }),
             _buildDivider(),
             _buildMenuItem(title: '个人第三方信息共享清单', onTap: () {
-              _navigateToWebView(context, '个人第三方信息共享清单', AppUrls.privacyPolicy);
+              _navigateToWebView(context, '个人第三方信息共享清单', AppUrls.messageShare);
             }),
           ],
         ),

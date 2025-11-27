@@ -2472,7 +2472,7 @@ connect(BuildContext context, String id,
   final remainingTime = data.remainingTime;
 
   // 检查逻辑
-  if (remainingTime <= 1000000) { // Assuming 1000000 is your threshold logic from previous code
+  if (remainingTime <= 0) { // Assuming 1000000 is your threshold logic from previous code
     String title = "开通会员"; // 默认标题
     String message = "";
     int targetVipType = 1;
