@@ -30,7 +30,7 @@
 
 
     <application
-        android:icon="@mipmap/logo"
+        android:icon="@mipmap/ic_launcher"
         android:label="手机远程控制宝"
         android:requestLegacyExternalStorage="true"
         android:roundIcon="@mipmap/ic_launcher"
