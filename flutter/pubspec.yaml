@@ -166,6 +166,13 @@ flutter_icons:
 
 
 
+tobias:
+  url_scheme: com.rustdesk.app.pay
+  ios:
+    ignore_security: true
+    universal_link: https://testdomain.com
+  no_utdid: true
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -203,6 +210,8 @@ flutter:
     - family: More
       fonts:
         - asset: assets/more.ttf
+
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.
