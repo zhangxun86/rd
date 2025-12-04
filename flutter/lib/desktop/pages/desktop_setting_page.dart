@@ -1667,12 +1667,12 @@ class _DisplayState extends State<_Display> {
           value: kRemoteViewStyleOriginal,
           groupValue: groupValue,
           label: 'Scale original',
-          onChanged: isOptFixed ? null : onChanged),
+        onChanged: isOptFixed ? null : (dynamic v) { onChanged!(v.toString()); }),
       _Radio(context,
           value: kRemoteViewStyleAdaptive,
           groupValue: groupValue,
           label: 'Scale adaptive',
-          onChanged: isOptFixed ? null : onChanged),
+    onChanged: isOptFixed ? null : (dynamic v) { onChanged!(v.toString()); }),
     ]);
   }
 

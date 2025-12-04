@@ -32,7 +32,10 @@ class PlatformFFI {
   // _homeDir is only needed for Android and IOS.
   String _homeDir = '';
   final _eventHandlers = <String, Map<String, HandleEvent>>{};
-  late RustdeskImpl _ffiBind;
+
+  // 1. 修改：类名从 RustdeskImpl 改为 ZzsrImpl
+  late ZzsrImpl _ffiBind;
+
   late String _appType;
   StreamEventHandler? _eventCallback;
 
@@ -41,7 +44,9 @@ class PlatformFFI {
   static final PlatformFFI instance = PlatformFFI._();
   final _toAndroidChannel = const MethodChannel('mChannel');
 
-  RustdeskImpl get ffiBind => _ffiBind;
+  // 2. 修改：类名改为 ZzsrImpl
+  ZzsrImpl get ffiBind => _ffiBind;
+
   F3? _session_get_rgba;
 
   static get localeName => Platform.localeName;
@@ -118,18 +123,14 @@ class PlatformFFI {
   Future<void> init(String appType) async {
     _appType = appType;
     final dylib = isAndroid
-        ? DynamicLibrary.open('libzzsr.so')
+        ? DynamicLibrary.open('libzzsr.so') // 这里你已经改对了
         : isLinux
-            ? DynamicLibrary.open('libzzsr.so')
-            : isWindows
-                ? DynamicLibrary.open('librustdesk.dll')
-                :
-                // Use executable itself as the dynamic library for MacOS.
-                // Multiple dylib instances will cause some global instances to be invalid.
-                // eg. `lazy_static` objects in rust side, will be created more than once, which is not expected.
-                //
-                // isMacOS? DynamicLibrary.open("liblibrustdesk.dylib") :
-                DynamicLibrary.process();
+        ? DynamicLibrary.open('libzzsr.so') // 这里你已经改对了
+        : isWindows
+    // 3. 修改：Windows下文件名改为 zzsr.dll (Cargo.toml中name="zzsr"时)
+        ? DynamicLibrary.open('zzsr.dll')
+        :
+    DynamicLibrary.process();
     debugPrint('initializing FFI $_appType');
     try {
       _session_get_rgba = dylib.lookupFunction<F3Dart, F3>("session_get_rgba");
@@ -139,7 +140,9 @@ class PlatformFFI {
       } catch (e) {
         debugPrint('Failed to get documents directory: $e');
       }
-      _ffiBind = RustdeskImpl(dylib);
+
+      // 4. 修改：构造函数改为 ZzsrImpl(dylib)
+      _ffiBind = ZzsrImpl(dylib);
 
       if (isLinux) {
         if (isMain) {
@@ -156,9 +159,6 @@ class PlatformFFI {
           // only support for android
           _homeDir = (await ExternalPath.getExternalStorageDirectories())[0];
         } else if (isIOS) {
-          // The previous code was `_homeDir = (await getDownloadsDirectory())?.path ?? '';`,
-          // which provided the `downloads` path in the sandbox.
-          // It is unclear why we now use the `data` directory in the sandbox instead.
           _homeDir = _ffiBind.mainGetDataDirIos(appDir: _dir);
         } else {
           // no need to set home dir
@@ -239,9 +239,10 @@ class PlatformFFI {
   }
 
   /// Start listening to the Rust core's events and frames.
-  void _startListenEvent(RustdeskImpl rustdeskImpl) {
+  // 5. 修改：参数类型改为 ZzsrImpl
+  void _startListenEvent(ZzsrImpl rustdeskImpl) {
     final appType =
-        _appType == kAppTypeDesktopRemote ? '$_appType,$kWindowId' : _appType;
+    _appType == kAppTypeDesktopRemote ? '$_appType,$kWindowId' : _appType;
     var sink = rustdeskImpl.startGlobalEventStream(appType: appType);
     sink.listen((message) {
       () async {
@@ -249,14 +250,14 @@ class PlatformFFI {
           Map<String, dynamic> event = json.decode(message);
           // _tryHandle here may be more flexible than _eventCallback
           if (!await tryHandle(event)) {
-            if (_eventCallback != null) {
-              await _eventCallback!(event);
-            }
-          }
-        } catch (e) {
-          debugPrint('json.decode fail(): $e');
-        }
-      }();
+      if (_eventCallback != null) {
+      await _eventCallback!(event);
+      }
+      }
+      } catch (e) {
+      debugPrint('json.decode fail(): $e');
+      }
+    }();
     });
   }
 

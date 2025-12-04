@@ -1958,7 +1958,7 @@ Future<bool> restoreWindowPosition(WindowType type,
   }
   pos ??= bind.getLocalFlutterOption(k: windowFramePrefix + type.name);
 
-  var lpos = LastWindowPosition.loadFromString(pos);
+  var lpos = LastWindowPosition.loadFromString(pos ?? "");
   if (lpos == null) {
     debugPrint("no window position saved, ignoring position restoration");
     return false;
