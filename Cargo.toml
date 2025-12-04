@@ -1,5 +1,5 @@
 [package]
-name = "rustdesk"
+name = "zzsr"
 version = "1.4.2"
 authors = ["rustdesk <info@rustdesk.com>"]
 edition = "2021"
@@ -9,7 +9,7 @@ default-run = "rustdesk"
 rust-version = "1.75"
 
 [lib]
-name = "librustdesk"
+name = "libzzsr"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [[bin]]
