@@ -1,10 +1,10 @@
 [package]
 name = "zzsr"
 version = "1.4.2"
-authors = ["rustdesk <info@rustdesk.com>"]
+authors = ["zzsr <info@zzsr.com>"]
 edition = "2021"
 build= "build.rs"
-description = "RustDesk Remote Desktop"
+description = "zzsr Remote Desktop"
 default-run = "zzsr"
 rust-version = "1.75"
 
@@ -45,6 +45,7 @@ screencapturekit = ["cpal/screencapturekit"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+obfstr = "0.4"
 async-trait = "0.1"
 scrap = { path = "libs/scrap", features = ["wayland"] }
 hbb_common = { path = "libs/hbb_common" }
@@ -229,6 +230,7 @@ osx_minimum_system_version = "10.14"
 
 #https://github.com/johnthagen/min-sized-rust
 [profile.release]
+opt-level = "z"      # 最小体积优化，这会彻底改变代码生成结构
 lto = true
 codegen-units = 1
 panic = 'abort'
