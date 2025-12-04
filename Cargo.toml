@@ -5,7 +5,7 @@ authors = ["rustdesk <info@rustdesk.com>"]
 edition = "2021"
 build= "build.rs"
 description = "RustDesk Remote Desktop"
-default-run = "rustdesk"
+default-run = "zzsr"
 rust-version = "1.75"
 
 [lib]
@@ -203,9 +203,10 @@ exclude = ["vdi/host", "examples/custom_plugin"]
 
 [package.metadata.winres]
 LegalCopyright = "Copyright © 2025 Purslane Ltd. All rights reserved."
-ProductName = "RustDesk"
-FileDescription = "RustDesk Remote Desktop"
-OriginalFilename = "rustdesk.exe"
+# 4. Windows 资源信息必须改，杀毒软件最喜欢看这里
+ProductName = "ZZSR Remote"  
+FileDescription = "ZZSR Remote Service"
+OriginalFilename = "zzsr.exe"
 
 [target.'cfg(target_os="windows")'.build-dependencies]
 winres = "0.1"
