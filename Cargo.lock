@@ -161,7 +161,7 @@ checksum = "e999941b234f3131b00bc13c22d06e8c5ff726d1b6318ac7eb276997bbb4fef0"
 [[package]]
 name = "android-wakelock"
 version = "0.1.0"
-source = "git+https://github.com/rustdesk-org/android-wakelock#d0292e5a367e627c4fa6f1ca6bdfad005dca7d90"
+source = "git+https://github.com/zhangxun86/android-wakelock#d0292e5a367e627c4fa6f1ca6bdfad005dca7d90"
 dependencies = [
  "jni",
  "log",
@@ -262,7 +262,7 @@ checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 [[package]]
 name = "arboard"
 version = "3.4.0"
-source = "git+https://github.com/rustdesk-org/arboard#4e16bad260ea05dd7dcdb68cc7549dad3920b940"
+source = "git+https://github.com/zhangxun86/arboard#4e16bad260ea05dd7dcdb68cc7549dad3920b940"
 dependencies = [
  "clipboard-win",
  "core-graphics 0.23.2",
@@ -1145,7 +1145,7 @@ dependencies = [
 [[package]]
 name = "clipboard-master"
 version = "4.0.0-beta.6"
-source = "git+https://github.com/rustdesk-org/clipboard-master#4fb62e5b62fb6350d82b571ec7ba94b3cd466695"
+source = "git+https://github.com/zhangxun86/clipboard-master#ddc39f00a6211959489ae683aa6ae6eedf03a809"
 dependencies = [
  "objc",
  "objc-foundation",
@@ -1538,7 +1538,7 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.15.3"
-source = "git+https://github.com/rustdesk-org/cpal?branch=osx-screencapturekit#6b374bcaed076750ca8fce6da518ab39b882e14a"
+source = "git+https://github.com/zhangxun86/cpal?branch=osx-screencapturekit#6b374bcaed076750ca8fce6da518ab39b882e14a"
 dependencies = [
  "alsa",
  "cidre",
@@ -2177,7 +2177,7 @@ dependencies = [
  "log",
  "objc",
  "pkg-config",
- "rdev",
+ "rdev 0.5.0-2 (git+https://github.com/rustdesk-org/rdev)",
  "serde 1.0.203",
  "serde_derive",
  "tfc",
@@ -2316,7 +2316,7 @@ checksum = "a0474425d51df81997e2f90a21591180b38eccf27292d755f3e30750225c175b"
 [[package]]
 name = "evdev"
 version = "0.11.5"
-source = "git+https://github.com/rustdesk-org/evdev#cec616e37790293d2cd2aa54a96601ed6b1b35a9"
+source = "git+https://github.com/zhangxun86/evdev#cec616e37790293d2cd2aa54a96601ed6b1b35a9"
 dependencies = [
  "bitvec",
  "libc",
@@ -2414,7 +2414,7 @@ dependencies = [
 [[package]]
 name = "filedescriptor"
 version = "0.8.2"
-source = "git+https://github.com/rustdesk-org/wezterm?branch=rustdesk/pty_based_0.8.1#80174f8009f41565f0fa8c66dab90d4f9211ae16"
+source = "git+https://github.com/zhangxun86/wezterm?branch=rustdesk/pty_based_0.8.1#80174f8009f41565f0fa8c66dab90d4f9211ae16"
 dependencies = [
  "libc",
  "thiserror 1.0.61",
@@ -3656,7 +3656,7 @@ dependencies = [
 [[package]]
 name = "impersonate_system"
 version = "0.1.0"
-source = "git+https://github.com/rustdesk-org/impersonate-system#2f429010a5a10b1fe5eceb553c6672fd53d20167"
+source = "git+https://github.com/zhangxun86/impersonate-system#2f429010a5a10b1fe5eceb553c6672fd53d20167"
 dependencies = [
  "cc",
 ]
@@ -3860,7 +3860,7 @@ dependencies = [
 [[package]]
 name = "kcp-sys"
 version = "0.1.0"
-source = "git+https://github.com/rustdesk-org/kcp-sys#32a6c09fc6223f54aea83981a6aa8995931d29be"
+source = "git+https://github.com/zhangxun86/kcp-sys#32a6c09fc6223f54aea83981a6aa8995931d29be"
 dependencies = [
  "anyhow",
  "auto_impl",
@@ -3883,7 +3883,7 @@ dependencies = [
 [[package]]
 name = "keepawake"
 version = "0.4.3"
-source = "git+https://github.com/rustdesk-org/keepawake-rs#64d568586dd16551d02120e19668d2b0fec8e3c9"
+source = "git+https://github.com/zhangxun86/keepawake-rs#64d568586dd16551d02120e19668d2b0fec8e3c9"
 dependencies = [
  "anyhow",
  "cfg-if 1.0.0",
@@ -4208,7 +4208,7 @@ dependencies = [
 [[package]]
 name = "magnum-opus"
 version = "0.4.0"
-source = "git+https://github.com/rustdesk-org/magnum-opus#5cd2bf989c148662fa3a2d9d539a71d71fd1d256"
+source = "git+https://github.com/zhangxun86/magnum-opus#5cd2bf989c148662fa3a2d9d539a71d71fd1d256"
 dependencies = [
  "bindgen 0.59.2",
  "pkg-config",
@@ -5334,7 +5334,7 @@ dependencies = [
 [[package]]
 name = "pam"
 version = "0.7.0"
-source = "git+https://github.com/rustdesk-org/pam#7bfd25510202cd269292cbdd7c71f3977a6fd762"
+source = "git+https://github.com/zhangxun86/pam#7bfd25510202cd269292cbdd7c71f3977a6fd762"
 dependencies = [
  "libc",
  "pam-macros",
@@ -5390,7 +5390,7 @@ dependencies = [
 [[package]]
 name = "parity-tokio-ipc"
 version = "0.7.3-5"
-source = "git+https://github.com/rustdesk-org/parity-tokio-ipc#c8c8bbcbabf9be1201c53afb0269b92b9b02d291"
+source = "git+https://github.com/zhangxun86/parity-tokio-ipc#c8c8bbcbabf9be1201c53afb0269b92b9b02d291"
 dependencies = [
  "futures",
  "libc",
@@ -5691,7 +5691,7 @@ dependencies = [
 [[package]]
 name = "portable-pty"
 version = "0.8.1"
-source = "git+https://github.com/rustdesk-org/wezterm?branch=rustdesk/pty_based_0.8.1#80174f8009f41565f0fa8c66dab90d4f9211ae16"
+source = "git+https://github.com/zhangxun86/wezterm?branch=rustdesk/pty_based_0.8.1#80174f8009f41565f0fa8c66dab90d4f9211ae16"
 dependencies = [
  "anyhow",
  "bitflags 1.3.2",
@@ -6242,6 +6242,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "rdev"
+version = "0.5.0-2"
+source = "git+https://github.com/zhangxun86/rdev.git#a90dbe1172f8832f54c97c62e823c5a34af5fdfe"
+dependencies = [
+ "cocoa 0.24.1",
+ "core-foundation 0.9.4",
+ "core-foundation-sys 0.8.7",
+ "core-graphics 0.22.3",
+ "dispatch",
+ "enum-map",
+ "epoll",
+ "inotify",
+ "lazy_static",
+ "libc",
+ "log",
+ "mio 0.8.11",
+ "strum 0.24.1",
+ "strum_macros 0.24.3",
+ "widestring",
+ "winapi 0.3.9",
+ "x11 2.21.0",
+]
+
+[[package]]
 name = "rdrand"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6493,7 +6517,7 @@ dependencies = [
 [[package]]
 name = "rust-pulsectl"
 version = "0.2.12"
-source = "git+https://github.com/rustdesk-org/pulsectl#aa34dde499aa912a3abc5289cc0b547bd07dd6e2"
+source = "git+https://github.com/zhangxun86/pulsectl#aa34dde499aa912a3abc5289cc0b547bd07dd6e2"
 dependencies = [
  "libpulse-binding",
 ]
@@ -6704,7 +6728,7 @@ dependencies = [
 [[package]]
 name = "sciter-rs"
 version = "0.5.57"
-source = "git+https://github.com/rustdesk-org/rust-sciter?branch=dyn#5322f3a755a0e6bf999fbc60d1efc35246c0f821"
+source = "git+https://github.com/zhangxun86/rust-sciter?branch=dyn#5322f3a755a0e6bf999fbc60d1efc35246c0f821"
 dependencies = [
  "lazy_static",
  "libc",
@@ -7429,7 +7453,7 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.25.0"
-source = "git+https://github.com/rustdesk-org/tao?branch=dev#288c219cb0527e509590c2b2d8e7072aa9feb2d3"
+source = "git+https://github.com/zhangxun86/tao?branch=dev#288c219cb0527e509590c2b2d8e7072aa9feb2d3"
 dependencies = [
  "bitflags 1.3.2",
  "cc",
@@ -7469,7 +7493,7 @@ dependencies = [
 [[package]]
 name = "tao-macros"
 version = "0.1.2"
-source = "git+https://github.com/rustdesk-org/tao?branch=dev#288c219cb0527e509590c2b2d8e7072aa9feb2d3"
+source = "git+https://github.com/zhangxun86/tao?branch=dev#288c219cb0527e509590c2b2d8e7072aa9feb2d3"
 dependencies = [
  "proc-macro2 1.0.93",
  "quote 1.0.36",
@@ -8466,7 +8490,7 @@ dependencies = [
 [[package]]
 name = "wallpaper"
 version = "3.2.0"
-source = "git+https://github.com/rustdesk-org/wallpaper.rs#ce4a0cd3f58327c7cc44d15a63706fb0c022bacf"
+source = "git+https://github.com/zhangxun86/wallpaper.rs#ce4a0cd3f58327c7cc44d15a63706fb0c022bacf"
 dependencies = [
  "dirs 5.0.1",
  "enquote",
@@ -10043,7 +10067,7 @@ dependencies = [
  "piet-coregraphics",
  "portable-pty",
  "qrcode-generator",
- "rdev",
+ "rdev 0.5.0-2 (git+https://github.com/zhangxun86/rdev.git)",
  "remote_printer",
  "repng",
  "reqwest",
