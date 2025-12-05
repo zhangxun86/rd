@@ -10052,6 +10052,7 @@ dependencies = [
  "libloading 0.8.4",
  "libpulse-binding",
  "libpulse-simple-binding",
+ "log",
  "mac_address",
  "magnum-opus",
  "nix 0.29.0",
